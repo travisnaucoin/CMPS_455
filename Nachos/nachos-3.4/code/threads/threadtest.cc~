@@ -1,0 +1,232 @@
+// threadtest.cc 
+//	Simple test case for the threads assignment.
+//
+//	Create two threads, and have them context switch
+//	back and forth between themselves by calling Thread::Yield, 
+//	to illustratethe inner workings of the thread system.
+//
+// Copyright (c) 1992-1993 The Regents of the University of California.
+// All rights reserved.  See copyright.h for copyright notice and limitation 
+// of liability and disclaimer of warranty provisions.
+
+#include "copyright.h"
+#include "system.h"
+
+
+using namespace std;
+
+//----------------------------------------------------------------------
+// SimpleThread
+// 	Loop 5 times, yielding the CPU to another ready thread 
+//	each iteration.
+//
+//	"which" is simply a number identifying the thread, for debugging
+//	purposes.
+//----------------------------------------------------------------------
+
+void
+SimpleThread(int which)
+{
+    int num;
+    
+    for (num = 0; num < 5; num++) {
+	printf("***The only  thread %d looped %d times\n", which, num);
+        currentThread->Yield();
+    }
+}
+
+void
+humanFunc(int which)
+{
+    int num;
+    
+    for (num = 0; num < 5; num++) {
+	printf("***The Human  thread %d looped %d times\n", which, num);
+        currentThread->Yield();
+    }
+}
+
+void
+zombieFunc(int which)
+{
+    int num;
+    
+    for (num = 0; num < 5; num++) {
+	printf("***The Zombie  thread %d looped %d times\n", which, num);
+        currentThread->Yield();
+    }
+}
+
+
+void
+getUserInput(int n) {
+    bool isChar = false;
+    bool isNegative = false;
+    bool isInt = false;
+    bool isDecimal = false;
+    bool hasDecimal = false;
+    char * charArr;
+    charArr = new char[1024];
+    printf("Enter a Something: ");
+    fgets(charArr,1024, stdin);
+    for (int i = 0 ; i < 1024; i++){
+
+		isNegative = (charArr[0] == '-') ? true : false;
+		if (charArr[i] == '.'){
+			hasDecimal = true;
+			continue;
+		}
+
+		if (charArr[i] >= 'a' && charArr[i] <= 'z' || charArr[i] >= 'A' && charArr[i] <= 'Z'){
+			isChar = true;
+			isInt = false;
+			isDecimal = false;
+		}
+		else if (charArr[i] >= '0' && charArr[i] <= '9'){
+			if (isChar == true){
+				return;
+			}
+			else if (isChar == false){
+				isInt = true;
+				isDecimal = (hasDecimal == true) ? true : false;
+			}
+		}
+		else {
+			isChar = true; //default fail case;
+			isInt = false;
+			isDecimal = false;
+		}
+		if (charArr[i] == '\n'){
+			if (isChar == true)  { 
+				printf("Character \n"); 
+			}
+			if (isInt == true & isDecimal == false) {
+				printf("Int \n");
+			}
+			if (isNegative == true & isChar == false){
+				printf("Negative \n");
+			}
+			if (isDecimal == true){
+				printf("Decimal \n");
+			}
+			return;
+		}
+	}
+    
+}
+
+
+
+void
+shoutingMatch(int shouters){
+	char *chosen;
+	chosen = new char[8];
+	for(int i = 0; i < externVar; i++){
+		int r = (Random() % 5) + 1;
+		printf("\n Thread %i shouted: ",shouters);
+		switch (r) {
+		case 1: printf("HI \n"); break;
+		case 2: printf("HEY \n"); break;
+		case 3: printf("HELLO \n"); break;
+		case 4: printf("YO \n"); break;
+		case 5: printf("BONJOUR \n"); break;
+		}
+		currentThread->Yield();	
+	}
+	
+	
+}
+
+void
+inputTaskZero(){
+	char *charArr;
+	charArr = new char[1024];
+	printf("Enter # of Humans: ");
+    	scanf("%1023s", charArr);
+	int humans = atoi(charArr);
+	if (humans <= 0) { 
+		printf("Enter a Valid Number! \n");
+		return;
+	}
+	printf("Enter # of Zombies: ");
+    	scanf("%1023s", charArr);
+	int zombies = atoi(charArr);
+	if (zombies <= 0) { 
+		printf("Enter a Valid Number! \n");
+		return;
+	}
+	externVar = zombies;
+	
+	for (int i = 0; i < humans; i++){
+		Thread *t = new Thread("forked thread");
+		t->Fork(humanFunc, i);
+	}
+	for (int i = 0; i < zombies; i++){
+		Thread *z = new Thread("zombie thread");
+		z->Fork(zombieFunc, i);
+		
+	}
+	currentThread->Finish();
+}
+
+void
+inputTaskTwo(){
+	char *charArr;
+	charArr = new char[1024];
+	printf("Enter # of Shouters: ");
+    	scanf("%1023s", charArr);
+	int shouters = atoi(charArr);
+	if (shouters <= 0) { 
+		printf("Enter a Valid Number! \n");
+		return;
+	}
+	printf("Enter # of Shouts: ");
+    	scanf("%1023s", charArr);
+	int shouts = atoi(charArr);
+	externVar = shouts;
+	
+	for (int i = 0; i < shouters; i++){
+		Thread *t = new Thread("forked thread");
+		t->Fork(shoutingMatch, i);
+	}
+	currentThread->Finish();
+}
+
+void
+inputTaskOne(){
+	Thread *t = new Thread("forked thread");
+	t->Fork(getUserInput, 0);
+	currentThread->Finish();
+}
+
+
+
+//----------------------------------------------------------------------
+// ThreadTest
+// 	Invoke a test routine.
+//----------------------------------------------------------------------
+
+void
+ThreadTest()
+{
+    int process = externVar;
+    switch (process){
+	case 0:
+		inputTaskZero();
+		break;
+	case 1: 
+		inputTaskOne();
+		break;
+	case 2:
+		inputTaskTwo();
+		break;
+	}
+    
+    DEBUG('t', "Entering ThreadTest");
+
+    //Thread *t = new Thread("forked thread");
+    //printf("externVar = %i", *externVar);
+    //t->Fork(getUserInput, 0);
+    //SimpleThread(0);
+}
+
