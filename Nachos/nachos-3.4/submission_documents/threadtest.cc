@@ -122,7 +122,7 @@ void CheckInputOnly(int i) {
 
 // End code changes by Travis Aucoin and Xiyue Xiang
 
-// Begin code changes by Bardley Milliman
+// Begin code changes by Bradley Milliman
 //----------------------------------------------------------------------
 // NumShouter
 // 	Prompt number of shouter
@@ -189,7 +189,7 @@ void Shout(int which){
 			
 	}
 } 
-// End code changes by Bardley Milliman
+// End code changes by Bradley Milliman
 
 // Begin code changes by Marcus Amos
 //----------------------------------------------------------------------
