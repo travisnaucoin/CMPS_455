@@ -15,6 +15,26 @@
 
 // Begin code changes by Travis and Xiyue Xiang
 
+//-------------------TASK 2 GLOBALS------------------------
+//---------------------------------------------------------
+void EnterRoom (int);
+void Eat (int);
+void Thinking (int);
+void GetSticks(int);
+void PutSitcks (int);
+void Philosopher (int);
+int NUMPHIL = 0; //number of philosophers
+int PINROOM = 0; //number of philosophers in room 
+int NUMMEAL  = 0; //number of meals
+typedef enum {THINKING,ISEATING,ISHUNGRY} pState; //state of philosophers
+pState *philState; //array holding all philosophers states
+Semaphore *mutex = new Semaphore("mutex",1); //mutual exclusion
+Semaphore **phil;//actual philosopher
+#define RIGHT(I) (I+NUMPHIL-1)%NUMPHIL
+#define LEFT(I)  ((I)+1) % NUMPHIL //left right check of philosophers
+//-----------------------------------------------------------
+//-----------------------------------------------------------
+
 extern char * selectArgs;
 int NumShout;
 int P; //number of people
@@ -74,6 +94,26 @@ ThreadTest()
 				Thread *t = new Thread("forked thread");
 				t->Fork(Shout, i);
 			}
+		
+		} else if (Task == 4){
+			//executing Dining Philosophers Semaphores
+			printf("Enter number of philosophers: ");
+			NUMPHIL = promptInput(1);
+			phil = new Semaphore*[NUMPHIL];
+			philState = new pState[NUMPHIL];
+			printf("Enter number of meals: ");
+			NUMMEAL = promptInput(1);
+			//INIT
+			for(int n = 0; n < NUMPHIL; n++)
+			{
+				phil[n] = new Semaphore("Phil", 0);
+			}
+			for (int p = 0; p < NUMPHIL; p++)
+			{
+				Thread *t = new Thread("forked thread");
+				t->Fork(EnterRoom,p);
+			}
+		
 		} else if (Task == 5){
 			// executing Post Office with waiting loop
 			printf("Enter number of people: ");
@@ -104,6 +144,172 @@ ThreadTest()
 	}	
 	currentThread -> Finish(); 
 }
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Project 2, Task 2 Dining Philosophers Begin.                       +
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//----------------------------------------------------------------------
+//PutSticks
+//  Make philosopher think and check adjacent ones to see if they are 
+//  hungry, put down sticks
+//---------------------------------------------------------------------
+void
+PutSticks(int i)
+{
+	
+	mutex->P();
+	philState[i] = THINKING;
+	if(philState[LEFT(i)] == ISHUNGRY) phil[LEFT(i)]->V();
+	printf("Philosopher %i, puts down left stick\n", i);
+	if(philState[RIGHT(i)] == ISHUNGRY) phil[RIGHT(i)]->V();
+	printf("Philosopher %i, puts down right stick\n", i);
+	mutex->V();
+}
+
+
+//----------------------------------------------------------------------
+//GetSticks
+//  Make philosopher hungry and check adjacent sticks to see if they can 
+//  eat
+//---------------------------------------------------------------------
+void
+GetSticks(int i)
+{
+	
+	philState[i] = ISHUNGRY;
+	
+	while (philState[i] == ISHUNGRY)
+	{
+		mutex->P();
+		if(philState[i] == ISHUNGRY && philState[RIGHT(i)] != ISEATING && NUMMEAL>0) printf("Philosopher %i, picks up RIGHT stick.\n",i);
+		else if (philState[i] == ISHUNGRY && philState[RIGHT(i)] != ISEATING && NUMMEAL==0){
+			printf("Philosopher %i, there are no other meals avalible \n",i);
+		}	
+		else{
+			printf("Philosopher %i, there are no other sticks avalible \n",i);
+		}
+
+		if(philState[i] == ISHUNGRY && philState[LEFT(i)] != ISEATING && NUMMEAL > 0) printf("Philosopher %i, picks up LEFT stick.\n",i);
+		else if (philState[i] == ISHUNGRY && philState[LEFT(i)] != ISEATING && NUMMEAL==0){
+			printf("Philosopher %i, there are no other meals avalible \n",i);
+		}
+		else{
+			printf("Philosopher %i, there are no other sticks avalible \n",i);
+		}
+
+		if (philState[i] == ISHUNGRY &&
+		philState[LEFT(i)] != ISEATING &&
+		philState[RIGHT(i)] != ISEATING && NUMMEAL > 0)
+		{ 
+			philState[i] = ISEATING;
+			phil[i]->V();
+		}
+		mutex->V();
+		phil[i]->P();
+	}
+}
+
+//----------------------------------------------------------------------
+//Thinking
+//  Make a philosopher think and wait for a few cycles 
+//  
+//---------------------------------------------------------------------
+void
+Thinking(int i)
+{
+	printf("Philosopher %i is thinking\n",i);
+	int stallCycle = Random() % 3 + 2; // randomly choose between 2 and 5. 
+	while (stallCycle != 0) {
+		philState[i] = THINKING;
+		currentThread->Yield();
+		stallCycle--;
+	}
+}
+
+//----------------------------------------------------------------------
+//Eating
+//  Make philosopher wait and eat for a few cycles
+//  
+//---------------------------------------------------------------------
+void
+Eat(int i)
+{
+	printf("Philosopher %i is eating\n",i);
+	NUMMEAL-=1;
+	printf("meals left: %i \n",NUMMEAL); //DEBUG PURPOSES
+	int stallCycle = Random() % 3 + 2; // randomly choose between 2 and 5. 
+	while (stallCycle != 0) {
+		philState[i] = ISEATING;
+		currentThread->Yield();
+		stallCycle--;
+	}
+}
+
+//----------------------------------------------------------------------
+//Philosopher
+//  Controls each philosopher and allows them to eat and think. 
+//
+//---------------------------------------------------------------------
+void
+Philosopher(int i)
+{
+	while(1){
+	Thinking(i);
+	if(NUMMEAL > 0){	
+	GetSticks(i);
+	Eat(i);
+	PutSticks(i);
+	}
+	
+	//test, this is where the standup code would go. 
+	if(NUMMEAL==0){
+	return;
+	}
+	}
+}
+
+//----------------------------------------------------------------------
+//EnterRoom
+//  Make philosopher hungry and check adjacent ones to see if they can 
+//  eat
+//---------------------------------------------------------------------
+void
+EnterRoom(int i)
+{
+	//
+	//This is what im having trouble with, any help would be great!
+	//
+	mutex->V();
+	printf("Philosopher: %i, enters room\n",i);
+	PINROOM++;
+	while(PINROOM<=NUMPHIL)
+	{
+	
+		mutex->P();
+	
+		if(PINROOM >= NUMPHIL)
+		{
+			printf("Philosopher %i, sits\n",i);
+			phil[i]->V();
+			mutex->V();
+			PINROOM+=1;
+			currentThread->Yield();
+			
+		}
+		else if (NUMPHIL > PINROOM){
+			//printf("%i, waits \n",i);
+			phil[i]->V();
+			//mutex->P();
+	
+		}
+
+	}
+	Philosopher(i);	
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Project 2 Task 2, Dining Philosophers End			       +
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //----------------------------------------------------------------------
 // PostOfficeLoop
