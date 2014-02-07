@@ -11,17 +11,215 @@
 
 #include "copyright.h"
 #include "system.h"
+#include "synch.h"
 
 // Begin code changes by Travis and Xiyue Xiang
 
-extern int selectArgs;
+extern char * selectArgs;
 int NumShout;
+int P; //number of people
+int S; //number of messages a person's mailbox can hold;
+int M; //total number of messages
+char * MsgList [] = {"Pattern0","Pattern1","Pattern2","Pattern3","Pattern4","Pattern5"};
+
+int CheckType (char *);
+void CheckInputOnly(int); 
+int promptInput (int);
+void Shout(int);
+void PostOfficeLoop(int);
+int NumMsgSent;  // Need to be protected.
+bool * done; // Leaving signal for person
+int * NumMsg; // Num of messages in each mailbox ---- Need to be protected.
+Semaphore ** mailboxSemaphore;
+Semaphore *MsgCntSemaphore = new Semaphore ("MsgCntSemaphore",1);
+
+struct MailSlot
+{
+	int Who;
+	char * Msg; 
+};
+MailSlot MailBox [128][64];
+
+//----------------------------------------------------------------------
+// ThreadTest
+//		Select task and create threads
+//		Fork functions to threads
+//
+//		task is selected based on global variable selectArgs.
+//		which is defined in system.cc
+//----------------------------------------------------------------------
+
+void
+ThreadTest()
+{
+	int Task = 0;
+    DEBUG('t', "Entering ThreadTest");
+	
+	// decide which task to run
+	if (CheckType(selectArgs)==1) 
+	{
+		Task = atoi(selectArgs);
+				
+		if (Task == 1){
+			// check input type
+			Thread *t = new Thread("forked thread");	
+			t->Fork(CheckInputOnly, 1);			
+		} else if (Task == 2){
+			// executing shouting
+			printf("Enter number of shouter: ");
+			int T = promptInput(1); // integer type is desired
+			printf("Shouts how many times: ");
+			NumShout = promptInput(1); // integer type is desired
+			for (int i=0; i<T; i++) {
+				Thread *t = new Thread("forked thread");
+				t->Fork(Shout, i);
+			}
+		} else if (Task == 5){
+			// executing Post Office with waiting loop
+			printf("Enter number of people: ");
+			P = promptInput(1);
+			printf("Enter the capacity of a mailbox: ");
+			S = promptInput(1); 
+			printf("Enter total number of messages: ");
+			M = promptInput(1);	
+			NumMsgSent = 0;
+			done = new bool[P];		
+			mailboxSemaphore = new Semaphore*[P];
+			NumMsg =  new int [P];
+			
+			// Initialization
+			for (int j=0; j<P; j++) {
+				done [j] = false;
+				NumMsg[j] = 0;
+				mailboxSemaphore[j] = new Semaphore ("mailboxSemaphore",1);
+			}
+
+			for (int i=0; i<P; i++) {	
+				Thread *t = new Thread("forked thread");
+				t->Fork(PostOfficeLoop, i);
+			}		
+		}	
+	} else {
+		printf("Error: -A is not an appropriate mode. \n");
+	}	
+	currentThread -> Finish(); 
+}
+
+//----------------------------------------------------------------------
+// PostOfficeLoop
+// 	Task 3: Post Office Problem using busy waiting loop
+//----------------------------------------------------------------------
+
+void PostOfficeLoop (int i)
+{
+	int iSendTo = i; // index of recipient
+	char * msgSent = new char;
+	int cycleStall = 0;
+	bool done_temp;
+	int sentCount = 0;
+	bool deadlock = false;
+	
+	while (done[i] != true ) 
+	{		
+		// Step 1: Enter the post office
+		printf ("Person %u enters the post office \n",i);
+
+		// Step 2 - 4
+		printf("-Person %u checks - he has %u letters in mailbox. \n",i,NumMsg[i]);
+		while (NumMsg[i] != 0) 
+		{ // read msg if a mailbox is not empty
+			mailboxSemaphore[i]->P();
+			printf("--Person %u claims Semaphore[%u] \n",i,i);
+			printf("---Person %u reads %uth msg: ",i,NumMsg[i]);
+			printf("%s ", MailBox[i][NumMsg[i]-1].Msg);
+			printf("Sent by Person %u \n", MailBox[i][NumMsg[i]-1].Who);
+			NumMsg[i]--;
+			mailboxSemaphore[i]->V();
+			printf("----Person %u releases Semaphore[%u] \n",i,i);
+			printf("-----Person %u yields after a read \n",i);
+			currentThread->Yield();	
+		}
+		
+		MsgCntSemaphore->P();
+		printf("------------Person %u is updating NumMsgSent \n",i);
+		if (NumMsgSent < M)
+		{
+		// step 5		
+			do { 
+				iSendTo = Random() % P;
+			} while (iSendTo == i);
+			int z = Random() % 6;
+			msgSent = MsgList[z];
+			printf("------Person %u complied %s sending to Person %u \n",i,msgSent,iSendTo);
+			
+			printf("-------Person %u checks - Person %u has %u letters in mailbox. \n",i,iSendTo,NumMsg[iSendTo]);		
+			// step 7		
+			while (NumMsg[iSendTo] == S && deadlock == false) 
+			{
+				sentCount ++;
+				if (sentCount == 3) {deadlock = true;}
+				printf("----------Person %u yields %uth times because mailbox[%u] is full! \n",i,sentCount,iSendTo);
+				currentThread->Yield();	
+			}		
+			
+			// step 6: sent msg
+			if (deadlock == false)
+			{
+				mailboxSemaphore[iSendTo]->P();
+				printf("---------Person %u claims Semaphore[%u]\n",i,iSendTo);				
+				NumMsg[iSendTo]++;		
+				MailBox[iSendTo][NumMsg[iSendTo]-1].Msg = msgSent;			
+				MailBox[iSendTo][NumMsg[iSendTo]-1].Who = i;
+				printf("----------Person %u successfully send %s to Person %u \n",i,MailBox[iSendTo][NumMsg[iSendTo]-1].Msg,iSendTo);								
+				NumMsgSent++;
+				printf("--------------Person %u successfully updates the overall msg count to %u \n",i,NumMsgSent);						
+				mailboxSemaphore[iSendTo]->V();
+				printf("-----------Person %u release Semaphore[%u]\n",i,iSendTo);
+			} else
+			{
+				printf("----------Person %u aborts sending attempt to Person %u due to potential deadlock! \n",i,iSendTo);
+				deadlock = false;
+				sentCount = 0;
+			}
+			
+		}
+		MsgCntSemaphore->V();
+		printf("-------------Person %u finishes updating NumMsgSent \n",i);
+		// Step 8: leave post office
+		printf("---------------Person %u leaves the post office. \n",i);
+		
+		// Step 9: wait for 2-5 cycles
+		cycleStall = Random() % 4 + 2;
+		int iStall = 0;
+		while (iStall != cycleStall) 
+		{ 
+			iStall++; 
+			printf("----------------Person %u yields %u cycles \n",i,iStall);
+			currentThread->Yield();
+		}
+			
+		// check if Person i should go home
+		// done[i] is true under two conditions:
+		// 		1. all mails have been read.
+		//		2. The amount of msg being sent is as prompted.
+		done_temp = true;
+		for (int j=0; j<P; j++)
+		{
+			done_temp = done_temp && (NumMsg[j]==0);
+//			if (NumMsg[j]==0) {done_temp = done_temp;}
+//			else {done_temp = false;}
+		}
+//		if ((done_temp == true) && (NumMsgSent == M)) {done[i] = true;}
+		done[i] = done_temp && (NumMsgSent==M);			
+	}
+	
+	printf("Person %u is free to go home and never come back! \n",i);
+}
 
 //----------------------------------------------------------------------
 // CheckType
 // 	Check the type of the input string
 //  TYPE = 0-zero; 1-pos int; 2-neg int; 3-pos dec; 4-neg dec; 5-character
-
 //----------------------------------------------------------------------
 
 int CheckType (char * str) {
@@ -32,8 +230,12 @@ int CheckType (char * str) {
 				// otherwise, it is a decimal number
 	int num_pt = 0;
 	int j = 0;
-		
+	int only_sign = 0; // use to detect input '-' and '+'
+	const char * negZero = "-0"; // use to cmp special case '-0' 
+	bool num_append = true; // has number appended after the first decimal point?
+	
 	i = atoi (str); // extract number only
+	printf("%d \n",i);
 	sprintf(i_str,"%d",i); // load into str type for cmp
 	if (strcmp(str,i_str) == 0){
 		if ((*i_str) == '-'){
@@ -54,21 +256,25 @@ int CheckType (char * str) {
 			// Use ASCII code to determine if the current digit is a number
 			if ((a >= 48) && (a <= 57) == true) {
 				flag = flag;
+				only_sign = 0;
+				num_append = true;
 			} 
 			// check the number and the position of the decimal points
 			else if (a == 46){
-				if (j == 0) {
+				if ((j == 0) || (only_sign == 1)){ // '.32' or '-.3123' or '+.1231' are all character
 					flag = 1;
 				} else {
 					num_pt++;
-					if (num_pt > 1) {
-						flag = 1;
-					}
+					if (num_pt == 1) num_append = false;
+					else if (num_pt > 1) flag = 1;
 				}
 			}
 			// determine if "-" or "+" appears in the middle of the string
 			// instead of beginning
 			else if ((a == 43 || a == 45) == true) {
+				if (j == 0) {
+					only_sign = 1;
+				}
 				if (j != 0) {
 					flag = 1;
 				}
@@ -78,12 +284,19 @@ int CheckType (char * str) {
 			}
 			j++;
 		}
+		
+		// input is combination of '-', '+', and '.' 
+		if (only_sign == 1 || num_append == false) {
+			flag = 1;
+		}
+		
 		if (flag == 1) {
 			TYPE = 5;
 		} else {
 			// determine the sign of the decimal number
 			if (str[0] == '-') {
-				TYPE = 4;
+				if (strcmp(str,negZero) == 0) {TYPE = 0;}
+				else {TYPE = 4;}
 			} else {
 				TYPE = 3;
 			}
@@ -97,6 +310,7 @@ int CheckType (char * str) {
 // CheckInputOnly
 //		Print out the input type; 	
 //----------------------------------------------------------------------
+
 void CheckInputOnly(int i) {
 	char * str = new char;
 	printf ("Enter something: ");
@@ -120,43 +334,22 @@ void CheckInputOnly(int i) {
 	delete str;
 }
 
-// End code changes by Travis Aucoin and Xiyue Xiang
+//----------------------------------------------------------------------
+// promptInput
+// 	Prompt Input with type = InputType (1: integer)
+//	InputType value refers to CheckType();
+//----------------------------------------------------------------------
 
-// Begin code changes by Bradley Milliman
-//----------------------------------------------------------------------
-// NumShouter
-// 	Prompt number of shouter
-// 	The input string is checked to obtain an positive integer.
-//----------------------------------------------------------------------
-int NumShouter (){
-	char * T = new char;
-	printf("Enter number of shouter: ");
-	scanf("%s",T);
-	while (CheckType(T) != 1){
-		printf("Ërror: Please check the input type! \n");
-		printf("Please reenter the number of shouter: ");
-		scanf("%s",T);
+int promptInput (int InputType){
+	char *  InputString = new char;
+	scanf("%s",InputString);
+	while (CheckType(InputString) != InputType){
+		printf("Error: Please check the input type! \n");
+		printf("Please reenter: ");
+		scanf("%s",InputString);
 	}
-	return atoi(T);
-	delete T;
-}
-
-//----------------------------------------------------------------------
-// Occurrence
-// 	Prompt how many time each thread shouts.
-// 	The input string is checked to obtain an positive integer.
-//----------------------------------------------------------------------
-int Occurrence (){
-	char * S = new char;
-	printf("Shouts how many times: ");
-	scanf("%s",S);
-	while (CheckType(S) != 1){
-		printf("Ërror: Please check the input type! \n");
-		printf("Please reenter how many times: ");
-		scanf("%s",S);
-	}
-	return atoi(S);
-	delete S;
+	return atoi(InputString);
+	delete InputString;
 }
 
 //----------------------------------------------------------------------
@@ -166,22 +359,17 @@ int Occurrence (){
 //		After each shout, a shouter yields random cycles, i.e. 2-5 cycles.
 //----------------------------------------------------------------------
 void Shout(int which){
-	char msg[5][64];
-	strcpy(msg[0],"Pattern0");
-	strcpy(msg[1],"Pattern1");
-	strcpy(msg[2],"Pattern2");
-	strcpy(msg[3],"Pattern3");
-	strcpy(msg[4],"Pattern4");	
+
 	int j; // msg index
 	int stallCycle; // how many cycles each thread yields.
 	
 	for (int i=0; i<NumShout; i++) {
 		
-		j = Random() % 5;
-		printf("Thread %i shouts for %i times: %s \n",which,i+1,msg[j]);
+		j = Random() % 6;
+		printf("Thread %i shouts for %i times: %s \n",which,i+1,MsgList[j]);
 
 		// stall random cycles before continuing		
-		stallCycle = Random() % 3 + 2; // randomly choose between 2 and 5. 
+		stallCycle = Random() % 4 + 2; // randomly choose between 2 and 5. 
 		while (stallCycle != 0) {
 			currentThread->Yield();
 			stallCycle--;
@@ -189,41 +377,3 @@ void Shout(int which){
 			
 	}
 } 
-// End code changes by Bradley Milliman
-
-// Begin code changes by Marcus Amos
-//----------------------------------------------------------------------
-// ThreadTest
-//		Select task and create threads
-//		Fork functions to threads
-//
-//		task is selected based on global variable selectArgs.
-//		which is defined in system.cc
-//----------------------------------------------------------------------
-void
-ThreadTest()
-{
-    DEBUG('t', "Entering ThreadTest");
-	
-	// decide which task to run
-	if (selectArgs == 0){
-		// no operation
-		printf("Opps! \n");		
-	} else if (selectArgs == 1){
-		// check input type
-		Thread *t = new Thread("forked thread");	
-		t->Fork(CheckInputOnly, 1);			
-	} else if (selectArgs == 2){
-		// executing shouting
-		int T = NumShouter();
-		NumShout = Occurrence();
-		for (int i=0; i<T; i++) {
-			Thread *t = new Thread("forked thread");
-			t->Fork(Shout, i);
-		}
-	}	
-			
-	currentThread -> Finish(); 
-}
-// End code changes by Marcus Amos
-

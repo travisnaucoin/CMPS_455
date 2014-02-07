@@ -7,7 +7,7 @@
 
 #ifndef SYSTEM_H
 #define SYSTEM_H
-
+ 
 #include "copyright.h"
 #include "utility.h"
 #include "thread.h"
@@ -50,7 +50,7 @@ extern PostOffice* postOffice;
 #endif
 
 // Begin code changes by Marcus Amos
-extern int selectArgs; 		// select which task is running in threadtest.cc git test
+extern char * selectArgs; 		// select which task is running in threadtest.cc git test
 // End code changes by Marcus Amos
 
 #endif // SYSTEM_H

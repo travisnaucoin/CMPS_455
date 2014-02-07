@@ -7,7 +7,7 @@
 
 #include "copyright.h"
 #include "system.h"
-
+ 
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
 
@@ -74,7 +74,8 @@ TimerInterruptHandler(int dummy)
 //	"argv" is an array of strings, one for each command line argument
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
-int selectArgs = 0;
+char * selectArgs = "";
+
 void
 Initialize(int argc, char **argv)
 {
@@ -104,13 +105,7 @@ Initialize(int argc, char **argv)
 	    }
 	// Begin code changes by Marcus Amos
 	} else if (!strcmp(*argv, "-A")) {
-		selectArgs = atoi(*(argv + 1));
-		printf("captures: %d \n",selectArgs);
-		if (selectArgs==1){}
-		else if (selectArgs==2) {}
-		else {
-			printf("Error: -A is not an appropriate mode. \n");
-		}
+		selectArgs = *(argv + 1);
 	// End code changes by Marcus Amos	
 	} else if (!strcmp(*argv, "-rs")) {
 	    ASSERT(argc > 1);
