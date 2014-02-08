@@ -18,6 +18,7 @@
 //-------------------TASK 2 GLOBALS------------------------
 //---------------------------------------------------------
 void EnterRoom (int);
+void LeaveRoom (int);
 void Eat (int);
 void Thinking (int);
 void GetSticks(int);
@@ -26,12 +27,14 @@ void Philosopher (int);
 int NUMPHIL = 0; //number of philosophers
 int PINROOM = 0; //number of philosophers in room 
 int NUMMEAL  = 0; //number of meals
-typedef enum {THINKING,ISEATING,ISHUNGRY} pState; //state of philosophers
+typedef enum {THINKING,ISEATING,ISHUNGRY,STOODUP} pState; //state of philosophers
 pState *philState; //array holding all philosophers states
+Semaphore *stand = new Semaphore("stand",1);
 Semaphore *mutex = new Semaphore("mutex",1); //mutual exclusion
 Semaphore **phil;//actual philosopher
 #define RIGHT(I) (I+NUMPHIL-1)%NUMPHIL
 #define LEFT(I)  ((I)+1) % NUMPHIL //left right check of philosophers
+bool sitting = false;
 //-----------------------------------------------------------
 //-----------------------------------------------------------
 
@@ -99,6 +102,7 @@ ThreadTest()
 			//executing Dining Philosophers Semaphores
 			printf("Enter number of philosophers: ");
 			NUMPHIL = promptInput(1);
+			PINROOM = NUMPHIL;
 			phil = new Semaphore*[NUMPHIL];
 			philState = new pState[NUMPHIL];
 			printf("Enter number of meals: ");
@@ -175,28 +179,32 @@ PutSticks(int i)
 void
 GetSticks(int i)
 {
-	
 	philState[i] = ISHUNGRY;
-	
+	bool left = false;
+	bool right = false;
 	while (philState[i] == ISHUNGRY)
 	{
 		mutex->P();
-		if(philState[i] == ISHUNGRY && philState[RIGHT(i)] != ISEATING && NUMMEAL>0) printf("Philosopher %i, picks up RIGHT stick.\n",i);
-		else if (philState[i] == ISHUNGRY && philState[RIGHT(i)] != ISEATING && NUMMEAL==0){
-			printf("Philosopher %i, there are no other meals avalible \n",i);
-		}	
-		else{
-			printf("Philosopher %i, there are no other sticks avalible \n",i);
+		if(philState[i] == ISHUNGRY && philState[LEFT(i)] != ISEATING && NUMMEAL > 0) left = true;
+		
+		if(philState[i] == ISHUNGRY && philState[RIGHT(i)] != ISEATING && NUMMEAL > 0) right = true;
+	
+		if (left && !right){
+			printf("Philosopher %i, picks up left stick \n",i);
+			printf("Philosopher %i, puts down left stick \n",i);
+			
 		}
-
-		if(philState[i] == ISHUNGRY && philState[LEFT(i)] != ISEATING && NUMMEAL > 0) printf("Philosopher %i, picks up LEFT stick.\n",i);
-		else if (philState[i] == ISHUNGRY && philState[LEFT(i)] != ISEATING && NUMMEAL==0){
-			printf("Philosopher %i, there are no other meals avalible \n",i);
+		if (!left && right){
+			printf("Philosopher %i, picks up right stick \n",i);
+			printf("Philosopher %i, puts down right stick \n",i);
+			
 		}
-		else{
-			printf("Philosopher %i, there are no other sticks avalible \n",i);
+		if (left && right){
+			printf("Philosopher %i, picks up right stick \n",i);
+			printf("Philosopher %i, picks left stick \n",i);
+			
 		}
-
+		
 		if (philState[i] == ISHUNGRY &&
 		philState[LEFT(i)] != ISEATING &&
 		philState[RIGHT(i)] != ISEATING && NUMMEAL > 0)
@@ -204,6 +212,7 @@ GetSticks(int i)
 			philState[i] = ISEATING;
 			phil[i]->V();
 		}
+		
 		mutex->V();
 		phil[i]->P();
 	}
@@ -253,19 +262,15 @@ Eat(int i)
 void
 Philosopher(int i)
 {
+	//bool go = true;
 	while(1){
-	Thinking(i);
-	if(NUMMEAL > 0){	
+	Thinking(i);	
 	GetSticks(i);
 	Eat(i);
 	PutSticks(i);
 	}
 	
-	//test, this is where the standup code would go. 
-	if(NUMMEAL==0){
-	return;
-	}
-	}
+	
 }
 
 //----------------------------------------------------------------------
@@ -279,33 +284,59 @@ EnterRoom(int i)
 	//
 	//This is what im having trouble with, any help would be great!
 	//
-	mutex->V();
-	printf("Philosopher: %i, enters room\n",i);
-	PINROOM++;
-	while(PINROOM<=NUMPHIL)
-	{
 	
-		mutex->P();
-	
-		if(PINROOM >= NUMPHIL)
-		{
-			printf("Philosopher %i, sits\n",i);
-			phil[i]->V();
-			mutex->V();
-			PINROOM+=1;
-			currentThread->Yield();
-			
-		}
-		else if (NUMPHIL > PINROOM){
-			//printf("%i, waits \n",i);
-			phil[i]->V();
-			//mutex->P();
-	
-		}
-
+	printf("Philosopher %i, has entered\n",i);
+	PINROOM--;
+	while(PINROOM >0){
+	mutex->P();
+	if(PINROOM > 0){
+		//printf("%i waits\n",i);
+		
+		phil[i]->V();
+		
 	}
-	Philosopher(i);	
+	mutex->V();
+	
+	}
+	if(PINROOM==0 && !sitting){
+	printf("They all sit at the table.\n");
+	sitting = true;
+	}
+	if(sitting){
+	Philosopher(i);
+	phil[i]->P();
+	}
+		
 }
+
+//----------------------------------------------------------------------
+//EnterRoom
+//  Make philosopher hungry and check adjacent ones to see if they can 
+//  eat
+//---------------------------------------------------------------------
+void
+LeaveRoom(int i)
+{
+	//
+	//This is what im having trouble with, any help would be great!
+	//
+	printf("Philosopher %i, stood up\n",i);
+	PINROOM++;
+	while (PINROOM < NUMPHIL){
+		stand->V();
+		phil[i]->V();
+		stand->P();
+		
+	}
+	
+	if (PINROOM == NUMPHIL){
+		printf("They all left the room.\n");
+		
+	}
+	phil[i]->P();
+		
+}
+
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Project 2 Task 2, Dining Philosophers End			       +
