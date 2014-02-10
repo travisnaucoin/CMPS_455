@@ -38,6 +38,19 @@ bool sitting = false;
 //-----------------------------------------------------------
 //-----------------------------------------------------------
 
+// Begin code changes by Bradley Milliman
+// global variables to solve Dining Philosopher's problem
+//int people;
+int MealLeft;			
+int PhilosopherSeated;
+int PhilosophersReady;
+int mealsEaten;
+int *chopstick; 
+int allPhilosopherSeated;
+bool seatGrant;
+bool leaveGrant;
+// end code changes by Bradley Milliman
+
 extern char * selectArgs;
 int NumShout;
 int P; //number of people
@@ -63,6 +76,127 @@ struct MailSlot
 };
 MailSlot MailBox [128][64];
 
+// code Changes made by Bradley Milliman begin
+//----------------------------------------------------------------------
+// Philosophers waiting loop for 
+// 	Task 1: Dinning Philosophers Problem using busy waiting loop
+//----------------------------------------------------------------------
+int PhilosophersWait(int num, int CheckCnt)
+ {
+	if (chopstick[num] == 1)
+	{
+		chopstick[num] = 0;
+		CheckCnt = 0;
+	}
+	else
+	{ 
+		CheckCnt ++;
+		int randomnum = 2+ Random() % 4;
+		for (int i=0;i<randomnum;i++)
+		{	
+			currentThread->Yield();
+		}	
+	}
+	return CheckCnt; 	
+ }
+
+//----------------------------------------------------------------------
+//  Philosophers waiting loop for 
+// 	Task 1: Dinning Philosophers Problem using busy waiting loop
+//----------------------------------------------------------------------
+void DinningPhilosophers(int info)
+ {
+ 	int ThreadNum = info;
+	int RandomNum;
+	int CheckCntRight = 0;
+	int CheckCntLeft = 0;
+	bool AbortPickup = false;
+
+    printf("Philosopher %d has joined the room \n", ThreadNum);
+ 	allPhilosopherSeated--;
+	
+	printf("Philosopher %d is waiting to sit\n", ThreadNum);
+ 	while (allPhilosopherSeated > 0)
+ 	{	
+ 	    currentThread->Yield();
+ 	}
+	
+	if (allPhilosopherSeated==0 && seatGrant == false)
+	{		
+		printf("All philosiphers sit down at table\n"); 
+		seatGrant = true;
+	}
+	// now all philosophers are seated
+ 
+    while (MealLeft > 0)
+    {	
+ 		// reaching for leftChopstick
+		while (CheckCntLeft != 0)
+		{
+			CheckCntLeft = PhilosophersWait((ThreadNum-1) % P , CheckCntLeft);
+			printf("Philosopher %d has picked up his left chopstick \n",ThreadNum);
+		}
+		
+ 		// reaching for rightChopstick	
+		while (CheckCntRight != 0 && CheckCntRight < 5)
+		{
+			CheckCntRight = PhilosophersWait((ThreadNum % P), CheckCntRight);
+			printf("Philosopher %d has picked up his right chopstick \n",ThreadNum);
+		}
+		if (CheckCntRight == 5) AbortPickup = true;
+		
+		if (AbortPickup != true) 
+		{
+			printf("Philosopher %d has picked up his right chopstick \n",ThreadNum);
+			// begin to eat
+
+			MealLeft--;
+			printf("Philosopher %d has begun to eat (%d Philosophers ate so far) \n",ThreadNum, M-MealLeft);
+			
+			
+			RandomNum = 2 + Random()%5;
+			for (int i=1;i<=RandomNum;i++)
+			{
+				currentThread->Yield();
+			}
+			printf("Philosopher %d has finished eating  \n",ThreadNum);
+
+			chopstick[(ThreadNum-1)%P] = 1;
+			printf("Philosopher %d has dropped his left chopstick \n",ThreadNum);
+			// dropping right chopstick
+			chopstick[ThreadNum%P] = 1;
+			printf("Philosopher %d has dropped his right chopstick \n",ThreadNum);
+		}
+		else {
+			chopstick[(ThreadNum-1)%P] = 1;
+			printf("Philosopher %d has dropped his left chopstick \n",ThreadNum);
+		}
+		
+        // start thinking
+		printf("Philosopher %d Thinking \n",ThreadNum);
+		RandomNum = 2 + Random()%5;
+		for (int i = 1; i<=RandomNum;i++)
+		{
+			currentThread->Yield();
+		}
+    }
+	
+    PhilosophersReady++;
+    printf("Philosopher %d is waiting to leave\n", ThreadNum);
+	
+    while (PhilosophersReady < P) // waiting for all philosophers to be ready
+    {
+		currentThread->Yield();
+    }
+	
+	if (PhilosophersReady == P && leaveGrant == false)
+	{
+	    printf(" All Philosophers have left the table \n");
+		leaveGrant = true;
+	}
+ }
+
+// code Changes made by Bradley Milliman end
 //----------------------------------------------------------------------
 // ThreadTest
 //		Select task and create threads
@@ -97,7 +231,39 @@ ThreadTest()
 				Thread *t = new Thread("forked thread");
 				t->Fork(Shout, i);
 			}
-		
+		// code Changes made by Bradley Milliman begin
+		} else if (Task == 3){
+			// executing Post Office with waiting loop
+			printf("Enter number of philosophers: ");
+			P = promptInput(1);
+			while (P <= 1)
+			{
+				printf("Not enough people to begin simulation. \n");
+				printf("Please reenter the number of philosophers:");
+				P = promptInput(1);
+			}
+			printf("Enter the total number of meals to be eaten: ");
+			M = promptInput(1);	
+			PhilosopherSeated = P; // initializing global variable
+ 			// initializing the array of chopstick flags
+			chopstick = new int[P+1];
+			allPhilosopherSeated = P;
+			seatGrant = false;
+			MealLeft = M;
+			leaveGrant = false;
+			PhilosophersReady = 0;
+			
+			for (int i = 1; i<=P;i++)
+			{
+				chopstick[i] = 1;
+			}
+			for (int i = 1; i<=P; i++)
+			{		
+			  Thread *t = new Thread("forked thread");
+			  t->Fork(DinningPhilosophers,i);
+			}
+		}	
+// code Changes made by Bradley Milliman end
 		} else if (Task == 4){
 			//executing Dining Philosophers Semaphores
 			printf("Enter number of philosophers: ");
@@ -143,7 +309,7 @@ ThreadTest()
 				t->Fork(PostOfficeLoop, i);
 			}		
 		}	
-	} else {
+	 else {
 		printf("Error: -A is not an appropriate mode. \n");
 	}	
 	currentThread -> Finish(); 
