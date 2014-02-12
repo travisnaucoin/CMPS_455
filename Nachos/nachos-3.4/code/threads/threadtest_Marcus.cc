@@ -34,7 +34,8 @@ bool SeatGrant;
 bool LeaveGrant;
 
 // ---- For Dining Philosopher (Semaphore)
-int * PStanding;
+
+int *PStanding;
 typedef enum {THINKING,ISEATING,ISHUNGRY} pState; //state of philosophers
 pState *PhilState; //array holding all philosophers states
 Semaphore * mutex; 
@@ -45,9 +46,11 @@ Semaphore * SitSemaphore;
 Semaphore * LeaveSemaphore;
 Semaphore * MealLeftMutex; // protect GLB variable MealLeft
 Semaphore ** PhilGrantSemaphore;  // grant philosopher to sit or pick up chopsticks
+bool * exit;
 int NumRdyLeave;
 int NumGrantLeave;
 bool noMeal;
+
 
 // ---- For Post Office Simulation ---- //
 int MsgSentCnt;  // Need to be protected.
@@ -73,24 +76,194 @@ void DinPhilBusyWait(int);
 void DinPhilSemaphore(int);
 void PostOfficeLoop(int);
 void PostOfficeSemaphore(int);
-bool ReachChopStick (int);
+int PhilosophersWait(int, int);
 void Eat (int);
 void GetSticks(int);
 void PutSticks (int);
 void LeaveRoom (int);
 void BusyWaitingLoop(void);
 
+// Global Variables for Project 2 Task 4: Post Office Simulation with Semaphores
+// Added by:  Marcus Amos
+extern void RandomInit(unsigned seed);
+extern int Random();
+int mailboxes = 0;
+int boxSize = 0;
+int sendLimit = 0;
+int messagesSent = 0;
+int ReadyToGo = 0;     // Flag used to show when users are ready to leave Post Office
 
-/*void ThreadTest()
+//-------------------------------------------------------------------------
+//  struct Mailbox
+//      used to store the data from the PostOffice Simulation with Semaphores
+//----------------------------------------------------------------------
+typedef struct Mailbox
 {
-	int Task = 0;
-    DEBUG('t', "Entering ThreadTest");
-	// check input type
-			Thread *t = new Thread("forked thread");	
-			t->Fork(CheckInputOnly, 1);	
-				currentThread -> Finish(); 
+     Semaphore *MailBoxSem;
+     int    sender;
+     int    message;
+};
+Mailbox **PostOffice;
+
+//---------------------------------------------------------------------------
+//   Message(int message) 
+//        outputs what is in the PostOffice (with Semaphores) messages 
+//---------------------------------------------------------------------------
+void Message(int message)
+{
+     if (message == 1)
+     {
+	printf("Orange \n");
+     }
+     else if (message == 2)
+     {
+	printf("Blue \n");
+     }
+     else if (message == 3)
+     {
+	printf("Red \n");
+     }
+     else if (message == 4)
+     {
+	printf("White \n");
+     }
+     else if (message == 5)
+     {
+	printf("Black \n");
+     }
 }
-*/
+
+
+//----------------------------------------------------------------------------
+// Task4(int ThreadNum)
+//        runs the Post Office Simulation with semaphores
+//----------------------------------------------------------------------------
+void Task4(int ThreadNum)
+{
+    int    destination;             // recipient of outgoing message
+    int    messageDetail; 	    // describing contents of message
+    bool   messageSent;		    // keeps track of outgoing message
+    bool   foundEmptySlot;	    // alerts when open slot is found in mailbox
+    int    search;		    // keeps track of empty slot
+    int    waitTime;		    // Random length of busy wait loop
+
+ 
+    while (messagesSent < sendLimit)
+    {
+	  int    timesChecked = 0;        // Amount of times a mailbox was found full
+      printf("Person %d is checking for new mail at the post office \n",ThreadNum);
+	for (int i=boxSize;i>=1;i--)	// reading all messages in mailbox
+	{
+
+	     if (PostOffice[ThreadNum][i].sender != 0) //  if there is a message in box
+	     {	
+		 PostOffice[ThreadNum][i].MailBoxSem->P();
+		 printf("     +Person %d is reading mail from Person %d containing message :",ThreadNum,PostOffice[ThreadNum][i].sender);
+	  	 Message(PostOffice[ThreadNum][i].message);
+			//emptying mailbox slot
+		 PostOffice[ThreadNum][i].message = 0;
+	   	 PostOffice[ThreadNum][i].sender = 0;
+			//freeing up that mailbox
+		 PostOffice[ThreadNum][i].MailBoxSem->V();
+			//letting other people do check mailbox
+		 currentThread->Yield();
+ 	     }
+	}
+		// choosing who to send a message to
+	while ((destination == ThreadNum) || (destination == 0)) 
+	{ // making sure random generator give a valid person to send to
+	    destination = 1+Random()%mailboxes;
+        }
+	messageDetail = 1+Random()%5;
+	printf("Person %d is done checking mail and now is composing a new message to person %d \n",ThreadNum,destination);
+		// sending a message
+	messageSent = FALSE;
+	foundEmptySlot = FALSE;
+		// loop to continue until message is sent
+	while((messageSent == FALSE) && (messagesSent < sendLimit))  
+        {
+	    search = 1; 
+		//searching for an empty slot
+	    while(search<=boxSize && foundEmptySlot == FALSE)
+            {
+
+		if (PostOffice[destination][search].sender == 0)
+	        {	//case 1: empty slot is found
+			//        send message
+
+		    foundEmptySlot = TRUE;
+		    PostOffice[destination][search].MailBoxSem->P();
+		    PostOffice[destination][search].message = messageDetail;
+	            PostOffice[destination][search].sender = ThreadNum;
+		    PostOffice[destination][search].MailBoxSem->V();
+		    messageSent = TRUE;
+		    messagesSent++;
+		    printf("     Person %d sent a message to Person %d with a message containing: ",ThreadNum,destination);
+                    Message(messageDetail);
+		    printf("************************ Messages Sent = %d \n",messagesSent);
+		}
+		else if(PostOffice[destination][search].sender != 0)
+		{	//case 2: empty slot is not found
+			//   search the next spot
+
+		    search++;
+
+                }
+            
+
+	        if ((foundEmptySlot == FALSE) && (search >= boxSize))
+			// busy waiting loop if message not sent
+	        {
+		   
+		   timesChecked++;
+                   printf("Person %d did not find any open mail slots for person %d (%d) time(s)\n",ThreadNum,destination,timesChecked);
+		   if (timesChecked >= 3) // stop trying to send message if checked 3 times
+		   {
+		       printf("After waiting %d times, Person %d has decided to try and send his message to Person %d another time\n",timesChecked,ThreadNum,destination);
+		       messageSent = TRUE;
+		   }
+		
+       		   else
+		   {	//perform busy wait loop is timesChecked < 3
+		      waitTime = 2+Random()%5;
+		      for (int i=1;i <= waitTime;i++)
+		      {
+		         currentThread->Yield();
+                      }
+		   }
+		   if (messagesSent == sendLimit)
+		   {
+			printf("Person %d won't send his message because the limit has been reached\n",ThreadNum);
+			messageSent =  TRUE;
+		   }
+            }
+           }
+        }
+	// person going back to work
+	printf("Person %d is leaving the post office... back to work \n",ThreadNum);
+	waitTime = 2 + Random() %5;
+	for(int i =1;i<=waitTime;i++)
+	{
+	     currentThread->Yield();
+	}
+        
+
+
+    }
+	// person going back to work for good
+	printf("\n");
+ 	ReadyToGo ++;
+	printf("%d People are now ready to leave \n",ReadyToGo);
+	while (ReadyToGo < mailboxes)
+	{	
+		currentThread->Yield();
+	}
+	printf("Person %d is now leaving the post office for good \n",ThreadNum);
+    printf("\n");
+}
+
+
+
 //----------------------------------------------------------------------
 // ThreadTest
 //		Select task and create threads
@@ -143,17 +316,17 @@ void ThreadTest()
 			
 			PhilosopherSeated = P; // initializing global variable
  			// initializing the array of chopstick flags
-			chopstick = new int[P];
+			chopstick = new int[P+1];
 			NumPhilNotIn = P;
 			SeatGrant = false;
-			LeaveGrant = false;
 			MealLeft = M;
+			LeaveGrant = false;
 			PhilosopherLeaveRdy = 0;
 			
-			for (int i=0; i<P;i++)
+			for (int i=1; i<=P;i++)
 				chopstick[i] = 1;
 			
-			for (int i=0; i<P; i++)
+			for (int i=1; i<=P; i++)
 			{		
 			  Thread *t = new Thread("forked thread");
 			  t->Fork(DinPhilBusyWait,i);
@@ -175,7 +348,7 @@ void ThreadTest()
 			
 			PhilGrantSemaphore = new Semaphore*[P];
 			PhilState = new pState[P];
-			done = new bool [P];
+			exit = new bool [P];
 			
 			// Initialization
 			NumPhilNotIn = P;
@@ -195,7 +368,7 @@ void ThreadTest()
 			{
 				PhilGrantSemaphore[i] = new Semaphore("Phil", 0);
 				PhilState[i] = THINKING;
-				done[i] = false;
+				exit[i] = false;
 			}
 			
 			for (int i = 0; i < P; i++)
@@ -238,35 +411,52 @@ void ThreadTest()
 		else if (Task == 6)
 		{
 			// executing Post Office with waiting loop
-			printf("Enter number of people: ");
-			P = promptInput(1);
-			while (P<=1) {
-				printf("Not enough people for proper simulation! \n");
-				printf("Please reenter the number of people: ");
-				P = promptInput(1);
-			}
-			printf("Enter the capacity of a mailbox: ");
-			S = promptInput(1); 
-			printf("Enter total number of messages: ");
-			M = promptInput(1);	
-			MsgSentCnt = 0;
-			done = new bool[P];		
-			mailboxSemaphore = new Semaphore*[P];
-			freeSpaceSemaphore = new Semaphore*[P];
-			MsgPtr =  new int [P];
-			
-			// Initialization
-			for (int j=0; j<P; j++) {
-				done [j] = false;
-				MsgPtr[j] = 0;
-				mailboxSemaphore[j] = new Semaphore ("mailboxSemaphore",1);
-				freeSpaceSemaphore[j] = new Semaphore ("freeSpaceSemaphore",S);
-			}
+			 int inputGood = 0;
+	         while ( inputGood != 1)
+	         { 	    
+                printf("---------------------------------------------------\n");
+	            printf("How many mailboxes are there?:  ");
+	            scanf("%d",&mailboxes);
+		        if (mailboxes <= 1)
+		        {
+		           printf("This input is not acceptable. Please input valid data. There must be more than 1 mailbox.\n");
+                }
+		        else
+		        {
+			        inputGood = 1;
+                }
+	          }
+//*****************************Add input validation for boxSize and sendLimit as well*******
+              printf("How many messages can each box hold?: ");
+	          scanf("%d",&boxSize);
+	          printf("How many messges can be sent before termination?: ");
+	          scanf("%d",&sendLimit);
+					// declares 2-d array
+	          PostOffice = new Mailbox*[mailboxes+1];
+              for (int i=1;i<=mailboxes;i++)
+	          {		
+		         PostOffice[i] = new Mailbox[boxSize +1];
+              }
 
-			for (int i=0; i<P; i++) {	
-				Thread *t = new Thread("forked thread");
-				t->Fork(PostOfficeSemaphore, i);
-			}		
+	          // initializing the two dimensional array
+              for (int i=1;i<=mailboxes;i++)
+	          {
+		          for (int j=1;j<=boxSize;j++)
+                  {
+		              PostOffice[i][j].MailBoxSem = new Semaphore("mailbox",1);
+		              PostOffice[i][j].sender = 0;
+		              PostOffice[i][j].message = 0;
+                  }
+              }
+            	// creating the new threads
+	
+	         for (int i=1;i<=mailboxes;i++)
+	         {
+		         Thread *t = new Thread("Mailbox User");
+		         t->Fork(Task4,i);
+             
+
+          }
 		}	
 	} 
 	else	printf("Error: -A is not an appropriate mode. \n");
@@ -279,13 +469,11 @@ void ThreadTest()
 // 	Dinning Philosophers Problem using only busy waiting loop
 //----------------------------------------------------------------------
 
-
-
 void DinPhilBusyWait(int i)
  {
+	int CheckCntRight = 0;
+	int CheckCntLeft = 0;
 	bool AbortPickup = false;
-	bool PickupLeft = false;
-	bool PickupRight = false;
 
     printf("-Philosopher %d has joined the room \n", i);
  	NumPhilNotIn--;
@@ -301,69 +489,59 @@ void DinPhilBusyWait(int i)
 	}
 	// now all philosophers are seated
  
-    while (MealLeft != 0)
+    while (MealLeft > 0)
     {	
-		printf("----Philosopher %d is trying to pick up chopstick [%u] \n",i,i%P);
-		PickupLeft = ReachChopStick(i%P);
-		if (PickupLeft == true)
+ 		// reaching for leftChopstick
+		while (CheckCntLeft != 0)
 		{
-			printf("-----Philosopher %d has picked up chopstick [%u] \n",i,i%P);
-			printf("----Philosopher %d is trying to pick up chopstick [%u] \n",i,(i+1)%P);
-			PickupRight = ReachChopStick((i+1)%P);
-			if (PickupRight == true)
-				printf("------Philosopher %d has picked up chopstick [%u] \n",i,(i+1)%P);
-			else
-			{
-				AbortPickup = true;
-				printf("-------Philosopher %u abort picking up chopstick [%u] after 5 trials to prevent deadlock! \n",i,(i+1)%P);
-				chopstick[i%P] = 1;
-				printf("----------Philosopher %d drops chopstick [%u] \n",i,i%P);
-			}
-		}		
-		else
-			{
-				AbortPickup = true;
-				printf("-------Philosopher %u abort picking up chopstick [%u] after 5 trials to prevent deadlock! \n",i,i%P);
-			}
-			
-		if (AbortPickup == false) 
-		{
-			if (MealLeft == 0)
-				printf("----------All meals have been eaten! \n");
-			else
-			{
-				// begin to eat
-				MealLeft--;
-				printf("-------Philosopher %d begins to eat (%d meals have been eaten so far) \n",i, M-MealLeft);
-				
-				BusyWaitingLoop();
-				
-				printf("--------Philosopher %d finishes eating  \n",i);
-			}
-				
-			chopstick[i%P] = 1;
-			printf("---------Philosopher %d drops chopstick [%u] \n",i,i%P);
-			// dropping right chopstick
-			chopstick[(i+1)%P] = 1;
-			printf("----------Philosopher %d drops chopstick [%u] \n",i,(i+1)%P);
+			CheckCntLeft = PhilosophersWait((i-1) % P , CheckCntLeft);
+			printf("----Philosopher %d has picked up the left chopstick \n",i);
 		}
 		
-		AbortPickup = false;
-		PickupLeft = false;
-		PickupRight = false;
+ 		// reaching for rightChopstick
+		// Abort pickup attemp after 5 trials
+		while (CheckCntRight != 0 && CheckCntRight < 5)
+		{
+			CheckCntRight = PhilosophersWait((i % P), CheckCntRight);
+			printf("-----Philosopher %d has picked up the right chopstick \n",i);
+		}
+		if (CheckCntRight == 5) 
+		{
+			AbortPickup = true;
+			printf("-------Philosopher %u abort eating attempt after trying pickup 5 times to prevent deadlock! \n",i);
+		}
+		
+		if (AbortPickup != true) 
+		{
+			// begin to eat
+			MealLeft--;
+			printf("-------Philosopher %d begins to eat (%d meals have been eaten so far) \n",i, M-MealLeft);
+			
+			BusyWaitingLoop();
+			
+			printf("--------Philosopher %d finishes eating  \n",i);
+
+			chopstick[(i-1)%P] = 1;
+			printf("---------Philosopher %d drops the left chopstick \n",i);
+			// dropping right chopstick
+			chopstick[i%P] = 1;
+			printf("----------Philosopher %d drops the right chopstick \n",i);
+		}
+		else {
+			chopstick[(i-1)%P] = 1;
+			printf("----------Philosopher %d drops the left chopstick \n",i);
+		}
 		
         // start thinking
 		printf("-----------Philosopher %d Thinking \n",i);
 		BusyWaitingLoop();
-		
-		
     }
 	
     PhilosopherLeaveRdy++;
     printf("------------Philosopher %d is waiting to leave\n", i);
 	
     while (PhilosopherLeaveRdy < P) // waiting for all philosophers to be ready
-		BusyWaitingLoop();
+		currentThread->Yield();
 	
 	if (PhilosopherLeaveRdy == P && LeaveGrant == false)
 	{
@@ -373,34 +551,26 @@ void DinPhilBusyWait(int i)
  }
 
  
- 
 // ******************************* //
-//		ReachChopStick
+//		PhilosophersWait
 //	Philosopher attemps to pickup 
 //	the chop sticks
 // ******************************* //
-
-bool ReachChopStick (int i)
-{
-	int CheckCnt = 0;
-	bool Pickup = false;
-	
-	// reaching for Chopstick
-	while (CheckCnt != 5 && Pickup == false)
+ 
+int PhilosophersWait(int i, int CheckCnt)
+ {
+	if (chopstick[i] == 1)
 	{
-		if (chopstick[i] == 1)
-		{
-			chopstick[i] = 0;
-			Pickup = true;	
-		}
-		else 
-		{
-			CheckCnt ++;	
-			BusyWaitingLoop();
-		}
+		chopstick[i] = 0;
+		CheckCnt = 0;
 	}
-	return Pickup;
-}
+	else
+	{ 
+		CheckCnt ++;
+		BusyWaitingLoop();
+	}
+	return CheckCnt; 	
+ }
 
 // ******************************* //
 //		Busy Waiting Loop
@@ -438,7 +608,7 @@ void DinPhilSemaphore(int i)
 	printf("---Philosopher %u sits at the table.\n",i);
 	
 	// Dinner Start
-	while (done[i] != true) 
+	while (exit[i] != true) 
 	{
 		GetSticks(i);
 		Eat(i);
@@ -515,7 +685,7 @@ void Eat(int i)
 	} else 
 	{
 		printf("-------No meal is left for Philosoper %u \n",i);
-		done[i] = true;
+		exit[i] = true;
 	}	
 	MealLeftMutex -> V();
 	BusyWaitingLoop();
@@ -534,12 +704,12 @@ void PutSticks(int i)
 	mutex->P();	
 	// forcefully wake up its left neighbor to check the state to avoid deadlock
 	if(PhilState[(i-1+P) % P] == ISHUNGRY) PhilGrantSemaphore[(i-1+P) % P]->V(); 
-	printf("--------Philosopher %i puts down left stick\n", i);
+	printf("--------Philosopher %i, puts down left stick\n", i);
 	if (P > 2) // In case of 2 philosopher, there is nobody on the right hand side.
 	{
 		// forcefully wake up its right neighbor to check the state to avoid deadlock
 		if(PhilState[(i+1) % P] == ISHUNGRY) PhilGrantSemaphore[(i+1) % P]->V();
-		printf("---------Philosopher %i puts down right stick\n", i);
+		printf("---------Philosopher %i, puts down right stick\n", i);
 	}
 	PhilState[i] = THINKING;
 	printf("----------Philosopher %u start thinking. \n",i);
@@ -809,6 +979,8 @@ void PostOfficeSemaphore (int i)
 		printf("$$$$$$$$$$ Exit simulation successfully! World peace! $$$$$$$$$$\n");
 	}
 }
+
+
 
 //----------------------------------------------------------------------
 // CheckType
