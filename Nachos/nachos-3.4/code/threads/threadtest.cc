@@ -83,6 +83,187 @@ void PutSticks (int);
 void LeaveRoom (int);
 void BusyWaitingLoop(void);
 
+// Global Variables for Project 2 Task 4: Post Office Simulation with Semaphores
+// Added by:  Marcus Amos
+extern void RandomInit(unsigned seed);
+extern int Random();
+int mailboxes = 0;
+int boxSize = 0;
+int sendLimit = 0;
+int messagesSent = 0;
+int ReadyToGo = 0;     // Flag used to show when users are ready to leave Post Office
+
+//-------------------------------------------------------------------------
+//  struct Mailbox
+//      used to store the data from the PostOffice Simulation with Semaphores
+//----------------------------------------------------------------------
+typedef struct Mailbox
+{
+     Semaphore *MailBoxSem;
+     int    sender;
+     int    message;
+};
+Mailbox **PostOffice;
+
+//---------------------------------------------------------------------------
+//   Message(int message) 
+//        outputs what is in the PostOffice (with Semaphores) messages 
+//---------------------------------------------------------------------------
+void Message(int message)
+{
+     if (message == 1)
+     {
+	printf("Orange \n");
+     }
+     else if (message == 2)
+     {
+	printf("Blue \n");
+     }
+     else if (message == 3)
+     {
+	printf("Red \n");
+     }
+     else if (message == 4)
+     {
+	printf("White \n");
+     }
+     else if (message == 5)
+     {
+	printf("Black \n");
+     }
+}
+
+
+//----------------------------------------------------------------------------
+// Task4(int ThreadNum)
+//        runs the Post Office Simulation with semaphores
+//----------------------------------------------------------------------------
+void Task4(int ThreadNum)
+{
+    int    destination;             // recipient of outgoing message
+    int    messageDetail; 	    // describing contents of message
+    bool   messageSent;		    // keeps track of outgoing message
+    bool   foundEmptySlot;	    // alerts when open slot is found in mailbox
+    int    search;		    // keeps track of empty slot
+    int    waitTime;		    // Random length of busy wait loop
+
+ 
+    while (messagesSent < sendLimit)
+    {
+	  int    timesChecked = 0;        // Amount of times a mailbox was found full
+      printf("Person %d is checking for new mail at the post office \n",ThreadNum);
+	for (int i=boxSize;i>=1;i--)	// reading all messages in mailbox
+	{
+
+	     if (PostOffice[ThreadNum][i].sender != 0) //  if there is a message in box
+	     {	
+		 PostOffice[ThreadNum][i].MailBoxSem->P();
+		 printf("     +Person %d is reading mail from Person %d containing message :",ThreadNum,PostOffice[ThreadNum][i].sender);
+	  	 Message(PostOffice[ThreadNum][i].message);
+			//emptying mailbox slot
+		 PostOffice[ThreadNum][i].message = 0;
+	   	 PostOffice[ThreadNum][i].sender = 0;
+			//freeing up that mailbox
+		 PostOffice[ThreadNum][i].MailBoxSem->V();
+			//letting other people do check mailbox
+		 currentThread->Yield();
+ 	     }
+	}
+		// choosing who to send a message to
+	while ((destination == ThreadNum) || (destination == 0)) 
+	{ // making sure random generator give a valid person to send to
+	    destination = 1+Random()%mailboxes;
+        }
+	messageDetail = 1+Random()%5;
+	printf("Person %d is done checking mail and now is composing a new message to person %d \n",ThreadNum,destination);
+		// sending a message
+	messageSent = FALSE;
+	foundEmptySlot = FALSE;
+		// loop to continue until message is sent
+	while((messageSent == FALSE) && (messagesSent < sendLimit))  
+        {
+	    search = 1; 
+		//searching for an empty slot
+	    while(search<=boxSize && foundEmptySlot == FALSE)
+            {
+
+		if (PostOffice[destination][search].sender == 0)
+	        {	//case 1: empty slot is found
+			//        send message
+
+		    foundEmptySlot = TRUE;
+		    PostOffice[destination][search].MailBoxSem->P();
+		    PostOffice[destination][search].message = messageDetail;
+	            PostOffice[destination][search].sender = ThreadNum;
+		    PostOffice[destination][search].MailBoxSem->V();
+		    messageSent = TRUE;
+		    messagesSent++;
+		    printf("     Person %d sent a message to Person %d with a message containing: ",ThreadNum,destination);
+                    Message(messageDetail);
+		    printf("************************ Messages Sent = %d \n",messagesSent);
+		}
+		else if(PostOffice[destination][search].sender != 0)
+		{	//case 2: empty slot is not found
+			//   search the next spot
+
+		    search++;
+
+                }
+            
+
+	        if ((foundEmptySlot == FALSE) && (search >= boxSize))
+			// busy waiting loop if message not sent
+	        {
+		   
+		   timesChecked++;
+                   printf("Person %d did not find any open mail slots for person %d (%d) time(s)\n",ThreadNum,destination,timesChecked);
+		   if (timesChecked >= 3) // stop trying to send message if checked 3 times
+		   {
+		       printf("After waiting %d times, Person %d has decided to try and send his message to Person %d another time\n",timesChecked,ThreadNum,destination);
+		       messageSent = TRUE;
+		   }
+		
+       		   else
+		   {	//perform busy wait loop is timesChecked < 3
+		      waitTime = 2+Random()%5;
+		      for (int i=1;i <= waitTime;i++)
+		      {
+		         currentThread->Yield();
+                      }
+		   }
+		   if (messagesSent == sendLimit)
+		   {
+			printf("Person %d won't send his message because the limit has been reached\n",ThreadNum);
+			messageSent =  TRUE;
+		   }
+            }
+           }
+        }
+	// person going back to work
+	printf("Person %d is leaving the post office... back to work \n",ThreadNum);
+	waitTime = 2 + Random() %5;
+	for(int i =1;i<=waitTime;i++)
+	{
+	     currentThread->Yield();
+	}
+        
+
+
+    }
+	// person going back to work for good
+	printf("\n");
+ 	ReadyToGo ++;
+	printf("%d People are now ready to leave \n",ReadyToGo);
+	while (ReadyToGo < mailboxes)
+	{	
+		currentThread->Yield();
+	}
+	printf("Person %d is now leaving the post office for good \n",ThreadNum);
+    printf("\n");
+}
+
+
+
 //----------------------------------------------------------------------
 // ThreadTest
 //		Select task and create threads
@@ -230,35 +411,52 @@ void ThreadTest()
 		else if (Task == 6)
 		{
 			// executing Post Office with waiting loop
-			printf("Enter number of people: ");
-			P = promptInput(1);
-			while (P<=1) {
-				printf("Not enough people for proper simulation! \n");
-				printf("Please reenter the number of people: ");
-				P = promptInput(1);
-			}
-			printf("Enter the capacity of a mailbox: ");
-			S = promptInput(1); 
-			printf("Enter total number of messages: ");
-			M = promptInput(1);	
-			MsgSentCnt = 0;
-			done = new bool[P];		
-			mailboxSemaphore = new Semaphore*[P];
-			freeSpaceSemaphore = new Semaphore*[P];
-			MsgPtr =  new int [P];
-			
-			// Initialization
-			for (int j=0; j<P; j++) {
-				done [j] = false;
-				MsgPtr[j] = 0;
-				mailboxSemaphore[j] = new Semaphore ("mailboxSemaphore",1);
-				freeSpaceSemaphore[j] = new Semaphore ("freeSpaceSemaphore",S);
-			}
+			 int inputGood = 0;
+	         while ( inputGood != 1)
+	         { 	    
+                printf("---------------------------------------------------\n");
+	            printf("How many mailboxes are there?:  ");
+	            scanf("%d",&mailboxes);
+		        if (mailboxes <= 1)
+		        {
+		           printf("This input is not acceptable. Please input valid data. There must be more than 1 mailbox.\n");
+                }
+		        else
+		        {
+			        inputGood = 1;
+                }
+	          }
+//*****************************Add input validation for boxSize and sendLimit as well*******
+              printf("How many messages can each box hold?: ");
+	          scanf("%d",&boxSize);
+	          printf("How many messges can be sent before termination?: ");
+	          scanf("%d",&sendLimit);
+					// declares 2-d array
+	          PostOffice = new Mailbox*[mailboxes+1];
+              for (int i=1;i<=mailboxes;i++)
+	          {		
+		         PostOffice[i] = new Mailbox[boxSize +1];
+              }
 
-			for (int i=0; i<P; i++) {	
-				Thread *t = new Thread("forked thread");
-				t->Fork(PostOfficeSemaphore, i);
-			}		
+	          // initializing the two dimensional array
+              for (int i=1;i<=mailboxes;i++)
+	          {
+		          for (int j=1;j<=boxSize;j++)
+                  {
+		              PostOffice[i][j].MailBoxSem = new Semaphore("mailbox",1);
+		              PostOffice[i][j].sender = 0;
+		              PostOffice[i][j].message = 0;
+                  }
+              }
+            	// creating the new threads
+	
+	         for (int i=1;i<=mailboxes;i++)
+	         {
+		         Thread *t = new Thread("Mailbox User");
+		         t->Fork(Task4,i);
+             
+
+          }
 		}	
 	} 
 	else	printf("Error: -A is not an appropriate mode. \n");
