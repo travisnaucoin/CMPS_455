@@ -82,7 +82,7 @@ ExceptionHandler(ExceptionType which)
 		machine->registers[PCReg] = machine->registers[NextPCReg];
 		machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
 
-		switch ( type )
+		switch ( type )	// values are specified in syscall.h
 		{
 
 		case SC_Halt :
@@ -92,11 +92,12 @@ ExceptionHandler(ExceptionType which)
 
 			
 		case SC_Read :
+			// Anderson: if the size (in reg5) OR OpenFileId (in reg6) is negative 
 			if (arg2 <= 0 || arg3 < 0){
 				printf("\nRead 0 byte.\n");
 			}
 			Result = SRead(arg1, arg2, arg3);
-			machine->WriteRegister(2, Result);
+			machine->WriteRegister(2, Result);  // Anderson: the result of syscall must be put back to reg2
 			DEBUG('t',"Read %d bytes from the open file(OpenFileId is %d)",
 			arg2, arg3);
 			break;
@@ -175,6 +176,7 @@ ExceptionHandler(ExceptionType which)
 
 
 static int SRead(int addr, int size, int id)  //input 0  output 1
+// Anderson's Question: what is actually returned?
 {
 	char buffer[size+10];
 	int num,Result;
@@ -185,9 +187,9 @@ static int SRead(int addr, int size, int id)  //input 0  output 1
 		scanf("%s",buffer);
 
 		num=strlen(buffer);
+		// Anderson: if the length of input from keyboard is more than the actual length SRead takes.
 		if(num>(size+1)) {
-
-			buffer[size+1] = '\0';
+			buffer[size+1] = '\0'; // defined the end-of-line
 			Result = size+1;
 		}
 		else {
