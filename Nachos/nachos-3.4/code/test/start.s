@@ -10,7 +10,7 @@
 #include "syscall.h"
 
         .text   
-        .align  2
+        .align  2	// Anderson: each instruction is 4B (2^2)
 
 /* -------------------------------------------------------------
  * __start
@@ -47,7 +47,7 @@ __start:
 Halt:
 	addiu $2,$0,SC_Halt
 	syscall
-	j	$31
+	j	$31	// Anderson: what's the heck is this?
 	.end Halt
 
 	.globl Exit

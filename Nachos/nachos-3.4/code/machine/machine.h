@@ -31,9 +31,9 @@
 #define PageSize 	SectorSize 	// set the page size equal to
 					// the disk sector size, for
 					// simplicity
-
+					// Anderson: SectorSize default to 256B
 #define NumPhysPages    32
-#define MemorySize 	(NumPhysPages * PageSize)
+#define MemorySize 	(NumPhysPages * PageSize)	// Anderson: default is  8KB
 #define TLBSize		4		// if there is a TLB, make it small
 
 enum ExceptionType { NoException,           // Everything ok!
