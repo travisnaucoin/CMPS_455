@@ -19,10 +19,12 @@
 #include "system.h"
 #include "addrspace.h"
 #include "noff.h"
+#include "bitmap.h"
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
 
+BitMap *BitMainMem = new BitMap(NumPhysPages);
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the 
@@ -85,11 +87,14 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
+    printf("I'm inside Addrspace right now\n");
+    BitMainMem->Print();
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 	pageTable[i].physicalPage = i;
+	BitMainMem->Mark(i);
 	pageTable[i].valid = TRUE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
@@ -97,6 +102,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
 					// a separate page, we could set its 
 					// pages to be read-only
     }
+
+   printf("Here is the Bitmap after the program memory has been allocated: \n");
+   BitMainMem->Print();
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
