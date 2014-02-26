@@ -19,12 +19,64 @@
 #include "system.h"
 #include "addrspace.h"
 #include "noff.h"
-#include "bitmap.h"
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
+#include "bitmap.h" // Marcus
 
+
+// begin Anderson
+// Memory allocation algorithm definition
+extern char * MemAlgSelArgs;
+extern int CheckType (char *);
+
+int FirstFit (void) {
+	return 111;
+}
+int BestFit (void) {
+	return 222;
+}
+int WorstFit (void) {
+	return 333;
+}
+
+// Pick the desired memory allocation algorithm
+// Return the starting physical address of the available memory frame
+int MemoryAllocation (void) {
+	int StartAddr = 0;
+	int MemAlg;
+	if (MemAlgSelArgs == NULL) {
+		StartAddr = FirstFit();
+	} else if (CheckType(MemAlgSelArgs)==1) {
+		MemAlg = atoi (MemAlgSelArgs);
+		if (MemAlg == 1) {
+			StartAddr = FirstFit();
+		} else if (MemAlg == 2) {
+			StartAddr = BestFit();
+		} else if (MemAlg == 3) {
+			StartAddr = WorstFit();
+		} else
+			StartAddr = FirstFit();
+	} else 	StartAddr = FirstFit();
+
+	return StartAddr;
+}
+
+// end Anderson
+
+// begin Marcus
 BitMap *BitMainMem = new BitMap(NumPhysPages);
+
+
+
+
+// end Marcus
+
+
+
+
+
+
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the 
@@ -87,14 +139,17 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-    printf("I'm inside Addrspace right now\n");
-    BitMainMem->Print();
+	// begin Marcus
+	BitMainMem->Print();
+	// end Marcus
 // first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 	pageTable[i].physicalPage = i;
+	// begin Marcus
 	BitMainMem->Mark(i);
+	// end Marcus
 	pageTable[i].valid = TRUE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
@@ -102,10 +157,11 @@ AddrSpace::AddrSpace(OpenFile *executable)
 					// a separate page, we could set its 
 					// pages to be read-only
     }
-
+	// begin Marcus
    printf("Here is the Bitmap after the program memory has been allocated: \n");
    BitMainMem->Print();
-    
+    // end Marcus
+	
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
     bzero(machine->mainMemory, size);

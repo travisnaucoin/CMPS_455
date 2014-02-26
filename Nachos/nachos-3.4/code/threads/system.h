@@ -49,9 +49,12 @@ extern SynchDisk   *synchDisk;
 extern PostOffice* postOffice;
 #endif
 
-// Begin code changes by Marcus Amos
+// begin Anderson
 extern char * selectArgs; 		// select which task is running in threadtest.cc git test
-// End code changes by Marcus Amos
+extern char * MemAlgSelArgs;
+extern int CheckType (char *);
+extern int MemoryAllocation (void);
+// end Anderson
 
 #endif // SYSTEM_H
 

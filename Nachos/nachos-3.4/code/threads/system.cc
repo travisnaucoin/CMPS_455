@@ -103,10 +103,8 @@ Initialize(int argc, char **argv)
 	    	debugArgs = *(argv + 1);
 	    	argCount = 2;
 	    }
-	// Begin code changes by Marcus Amos
 	} else if (!strcmp(*argv, "-A")) {
 		selectArgs = *(argv + 1);
-	// End code changes by Marcus Amos	
 	} else if (!strcmp(*argv, "-rs")) {
 	    ASSERT(argc > 1);
 	    RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random

@@ -60,6 +60,11 @@ extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
+// begin Anderson
+char * MemAlgSelArgs = "";
+extern int MemoryAllocation (void);
+// end Anderson
+
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.  
@@ -92,18 +97,36 @@ main(int argc, char **argv)
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
 #ifdef USER_PROGRAM
-        if (!strcmp(*argv, "-x")) {        	// run a user program
+		
+        if (!strcmp(*argv, "-x")) {
+			// Select memory allocation algorithm
+			// begin Anderson 
+			if (!strcmp(*(argv + 2), "-M")) { 
+				MemAlgSelArgs = *(argv + 3);
+				printf ("debug return addr: %u \n",MemoryAllocation());
+			} else {
+				MemAlgSelArgs = NULL; // running default
+				printf ("debug return addr: %u \n",MemoryAllocation());
+			}
+			// end Anderson	
+			
+		// run a user program
 	    ASSERT(argc > 1);
             StartProcess(*(argv + 1));
             argCount = 2;
         } else if (!strcmp(*argv, "-c")) {      // test the console
-	    if (argc == 1)
+	    
+		
+		if (argc == 1)
 	        ConsoleTest(NULL, NULL);
 	    else {
 		ASSERT(argc > 2);
 	        ConsoleTest(*(argv + 1), *(argv + 2));
 	        argCount = 3;
 	    }
+		
+	
+			
 	    interrupt->Halt();		// once we start the console, then 
 					// Nachos will loop forever waiting 
 					// for console input

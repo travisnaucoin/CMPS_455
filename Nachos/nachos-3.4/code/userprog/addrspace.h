@@ -30,9 +30,6 @@ class AddrSpace {
 
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
-    int FirstFit (int searchNum);
-    int BestFit (int searchNum);
-    int WorstFit (int searchNum);
 
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation
