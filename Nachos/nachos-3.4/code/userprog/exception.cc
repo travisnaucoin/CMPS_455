@@ -58,6 +58,18 @@ static void SWrite(char *buffer, int size, int id);
 //	are in machine.h.
 //----------------------------------------------------------------------
 
+// begin Anderson
+void processCreator (int PID) {
+	currentThread->space->InitRegisters();
+	currentThread->space->RestoreState(); // load page table register
+	printf ("Process %u being forked \n", PID);
+	machine->Run(); // jump to the user progam
+	ASSERT(FALSE); // machine->Run never returns;	
+}
+
+// end Anderson
+
+
 void
 ExceptionHandler(ExceptionType which)
 {
@@ -72,105 +84,161 @@ ExceptionHandler(ExceptionType which)
 
 	switch ( which )
 	{
-	case NoException :
-		break;
-	case SyscallException :
-
-		// for debugging, in case we are jumping into lala-land
-		// Advance program counters.
-		machine->registers[PrevPCReg] = machine->registers[PCReg];
-		machine->registers[PCReg] = machine->registers[NextPCReg];
-		machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
-
-		switch ( type )	// values are specified in syscall.h
-		{
-
-		case SC_Halt :
-			DEBUG('t', "Shutdown, initiated by user program.\n");
-			interrupt->Halt();
+		case NoException :
 			break;
+		case SyscallException :
 
-			
-		case SC_Read :
-			// Anderson: if the size (in reg5) OR OpenFileId (in reg6) is negative 
-			if (arg2 <= 0 || arg3 < 0){
-				printf("\nRead 0 byte.\n");
-			}
-			Result = SRead(arg1, arg2, arg3);
-			machine->WriteRegister(2, Result);  // Anderson: the result of syscall must be put back to reg2
-			DEBUG('t',"Read %d bytes from the open file(OpenFileId is %d)",
-			arg2, arg3);
-			break;
+			// for debugging, in case we are jumping into lala-land
+			// Advance program counters.
+			machine->registers[PrevPCReg] = machine->registers[PCReg];
+			machine->registers[PCReg] = machine->registers[NextPCReg];
+			machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
 
-		case SC_Write :
-			for (j = 0; ; j++) {
-				if(!machine->ReadMem((arg1+j), 1, &i))
-					j=j-1;
-				else{
-					ch[j] = (char) i;
-					if (ch[j] == '\0') 
-						break;
+			switch ( type )	// values are specified in syscall.h
+			{
+			// begin Anderson
+				case SC_Exec : 
+				{
+					int AddrFile = machine -> ReadRegister(4);
+					char * filename = new char [128];
+					int * ValTemp;
+					if(!machine->ReadMem(AddrFile,1,ValTemp)) {
+						printf("VA to PA translation fails when open file \n");
+						return;
+					}
+					i=0;
+					while( *ValTemp!=0 )
+					{
+						filename[i]=*ValTemp + i;
+						//*ValTemp+=1;
+						i++;
+						//if(!machine->ReadMem(AddrFile,1,ValTemp))return;
+					}
+					filename[i]=(char)0;
+					
+					OpenFile *executable1 = fileSystem->Open(filename);
+					delete filename;
+					delete ValTemp;
+					AddrSpace *space;
+					space = new AddrSpace(executable1);
+					Thread * t = new Thread("SyscallThread");
+					t->space = space;
+					delete executable1;
+					int PID = t->GetId();	
+					t -> Fork(processCreator,PID);								
+					break;
+				// End Anderson
 				}
+				
+				case SC_Join :
+				{
+					
+				
+				
+				
+				}
+				
+				case SC_Exit : 
+				{
+				
+				}
+				
+				case SC_Yield : 
+				{
+					
+				}
+				
+				case SC_Halt :
+				{
+					DEBUG('t', "Shutdown, initiated by user program.\n");
+					interrupt->Halt();
+					break;
+				}
+					
+				case SC_Read :
+				{
+					// Anderson: if the size (in reg5) OR OpenFileId (in reg6) is negative 
+					if (arg2 <= 0 || arg3 < 0){
+						printf("\nRead 0 byte.\n");
+					}
+					Result = SRead(arg1, arg2, arg3);
+					machine->WriteRegister(2, Result);  // Anderson: the result of syscall must be put back to reg2
+					DEBUG('t',"Read %d bytes from the open file(OpenFileId is %d)",
+					arg2, arg3);
+					break;
+				}
+
+				case SC_Write :
+				{
+					for (j = 0; ; j++) {
+						if(!machine->ReadMem((arg1+j), 1, &i))
+							j=j-1;
+						else{
+							ch[j] = (char) i;
+							if (ch[j] == '\0') 
+								break;
+						}
+					}
+					if (j == 0){
+						printf("\nWrite 0 byte.\n");
+						// SExit(1);
+					} else {
+						DEBUG('t', "\nWrite %d bytes from %s to the open file(OpenFileId is %d).", arg2, ch, arg3);
+						SWrite(ch, j, arg3);
+					}
+					break;
+
+					default :
+					//Unprogrammed system calls end up here
+					break;
+				}         
+				break;
 			}
-			if (j == 0){
-				printf("\nWrite 0 byte.\n");
-				// SExit(1);
-			} else {
-				DEBUG('t', "\nWrite %d bytes from %s to the open file(OpenFileId is %d).", arg2, ch, arg3);
-				SWrite(ch, j, arg3);
-			}
+			
+		case ReadOnlyException :
+			puts ("ReadOnlyException");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
+			break;
+		case BusErrorException :
+			puts ("BusErrorException");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
+			break;
+		case AddressErrorException :
+			puts ("AddressErrorException");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
+			break;
+		case OverflowException :
+			puts ("OverflowException");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
+			break;
+		case IllegalInstrException :
+			puts ("IllegalInstrException");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
+			break;
+		case NumExceptionTypes :
+			puts ("NumExceptionTypes");
+			if (currentThread->getName() == "main")
+			ASSERT(FALSE);  //Not the way of handling an exception.
+			//SExit(1);
 			break;
 
 			default :
-			//Unprogrammed system calls end up here
+			//      printf("Unexpected user mode exception %d %d\n", which, type);
+			//      if (currentThread->getName() == "main")
+			//      ASSERT(FALSE);
+			//      SExit(1);
 			break;
-		}         
-		break;
-
-	case ReadOnlyException :
-		puts ("ReadOnlyException");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-	case BusErrorException :
-		puts ("BusErrorException");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-	case AddressErrorException :
-		puts ("AddressErrorException");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-	case OverflowException :
-		puts ("OverflowException");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-	case IllegalInstrException :
-		puts ("IllegalInstrException");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-	case NumExceptionTypes :
-		puts ("NumExceptionTypes");
-		if (currentThread->getName() == "main")
-		ASSERT(FALSE);  //Not the way of handling an exception.
-		//SExit(1);
-		break;
-
-		default :
-		//      printf("Unexpected user mode exception %d %d\n", which, type);
-		//      if (currentThread->getName() == "main")
-		//      ASSERT(FALSE);
-		//      SExit(1);
-		break;
-	}
+		}
 	delete [] ch;
 }
 
@@ -229,4 +297,3 @@ static void SWrite(char *buffer, int size, int id)
 }
 
 // end FA98
-

@@ -13,6 +13,7 @@
 #include "console.h"
 #include "addrspace.h"
 #include "synch.h"
+#include "thread.h"
 
 //----------------------------------------------------------------------
 // StartProcess
@@ -25,14 +26,14 @@ StartProcess(char *filename)
 {
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
-
     if (executable == NULL) {
 	printf("Unable to open file %s\n", filename);
 	return;
     }
     space = new AddrSpace(executable);    
     currentThread->space = space;
-
+	int PID = currentThread->GetId();
+	printf("Process %u PID is created \n",PID);
     delete executable;			// close file
 
     space->InitRegisters();		// set the initial register values

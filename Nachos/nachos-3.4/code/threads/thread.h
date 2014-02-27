@@ -101,7 +101,11 @@ class Thread {
     void setStatus(ThreadStatus st) { status = st; }
     char* getName() { return (name); }
     void Print() { printf("%s, ", name); }
-
+	
+	// begin Anderson
+	int GetId(void);
+	// end Anderson
+  
   private:
     // some of the private data for this class is listed above
     

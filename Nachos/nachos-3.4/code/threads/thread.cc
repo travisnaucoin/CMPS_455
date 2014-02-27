@@ -24,6 +24,25 @@
 					// execution stack, for detecting 
 					// stack overflows
 
+// begin Anderson
+int ProcessId = 0;	
+Semaphore * PIDMutex = new Semaphore ("PIDMutex",1);			
+//----------------------------------------------------------------------
+// Thread::GetId
+// 	
+//----------------------------------------------------------------------					
+int Thread::GetId (void) 
+{
+	PIDMutex -> P();
+	ProcessId++;
+	PIDMutex -> V();
+	return ProcessId;
+}					
+// end Anderson		
+	
+
+
+					
 //----------------------------------------------------------------------
 // Thread::Thread
 // 	Initialize a thread control block, so that we can then call
@@ -64,6 +83,9 @@ Thread::~Thread()
 	DeallocBoundedArray((char *) stack, StackSize * sizeof(int));
 }
 
+
+				
+		
 //----------------------------------------------------------------------
 // Thread::Fork
 // 	Invoke (*func)(arg), allowing caller and callee to execute 

@@ -16,6 +16,11 @@
 #include "stats.h"
 #include "timer.h"
 
+
+// begin Anderson
+#include "synch.h"
+// end Anderson
+
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
 						// called before anything else
@@ -54,6 +59,8 @@ extern char * selectArgs; 		// select which task is running in threadtest.cc git
 extern char * MemAlgSelArgs;
 extern int CheckType (char *);
 extern int MemoryAllocation (void);
+extern int ProcessId;
+extern Semaphore * PIDMutex;
 // end Anderson
 
 #endif // SYSTEM_H
