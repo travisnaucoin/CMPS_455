@@ -112,7 +112,7 @@ int AddrSpace::FirstFit ()
 int AddrSpace::BestFit () {
 	 int 	chunk = 0;	// the size of the available contiguous memory chunk
 	int  bestChunk = NumPhysPages;			
-	int 	index = 0;
+	int 	index = 1;
 	int  bestStartingAddress =0;
 	int 	startingAddress = 0;
 	bool SpaceFound = FALSE;
@@ -134,9 +134,10 @@ int AddrSpace::BestFit () {
 			{
 			    chunk++;
 			}
-			
+			printf("           %d                 ",index)
 		  	index++;
-			if (index >= NumPhysPages)
+			printf("           %d                 ",index)
+			if (index >=NumPhysPages)
 			{
 				EndOfMem = TRUE;
 				index = 0; // to prevent an ASSERT inside Bitmap Test Function
