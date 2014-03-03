@@ -62,7 +62,9 @@ extern void MailTest(int networkID);
 
 // begin Anderson
 char * MemAlgSelArgs = "";
-extern int MemoryAllocation (void);
+// begin Marcus
+//extern int MemoryAllocation (void);
+// end Marcus
 // end Anderson
 
 //----------------------------------------------------------------------
@@ -103,10 +105,12 @@ main(int argc, char **argv)
 			// begin Anderson 
 			if (!strcmp(*(argv + 2), "-M")) { 
 				MemAlgSelArgs = *(argv + 3);
-				printf ("debug return addr: %u \n",MemoryAllocation());
+// begin Marcus
+//				printf ("debug return addr: %u \n",MemoryAllocation());
 			} else {
 				MemAlgSelArgs = NULL; // running default
-				printf ("debug return addr: %u \n",MemoryAllocation());
+//				printf ("debug return addr: %u \n",MemoryAllocation());
+// end Marcus
 			}
 			// end Anderson	
 			
