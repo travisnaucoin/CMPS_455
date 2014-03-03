@@ -61,7 +61,11 @@ extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
 // begin Anderson
-char * MemAlgSelArgs = "";//extern int MemoryAllocation (void);// end Anderson
+char * MemAlgSelArgs = "";
+// begin Marcus
+//extern int MemoryAllocation (void);
+// end Marcus
+// end Anderson
 
 //----------------------------------------------------------------------
 // main

@@ -27,12 +27,12 @@ class AddrSpace {
 
     void InitRegisters();		// Initialize user-level CPU registers,
 					// before jumping to user code
-    
-    
+
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
-    int FirstFit();    int BestFit ();	
-    int WorstFit ();
+    int FirstFit();
+    int BestFit (void);	
+    int WorstFit (void);
     int MemoryAllocation (void);
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation

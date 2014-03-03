@@ -34,209 +34,7 @@ extern int CheckType (char *);
 BitMap *MainMemMap = new BitMap(NumPhysPages);
 int     StartHere;
 
-// begin Marcus
-//-------------------------------------------------------------------------
-// FirstFit
-//
-//
-//-------------------------------------------------------------------------
-int AddrSpace::FirstFit () 
-{
-	int 	chunk = 0;				// the size of the available contiguous memory chunk
-	int 	index = 0;
-	int 	startingAddress = 0;
-	bool	SpaceFound = FALSE;
-	bool    EndOfMem = FALSE;
-	
-	while (!SpaceFound && index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
-	{
-		printf(" FirstFit: index is equal to %d \n",index);
-		// if MainMemMap->Test(index) == 0 then start consecutive pages
-		// or else you index and keep looking
-		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
-		{
-			if (chunk == 0)
-			{
-			    chunk++;
-			    startingAddress = index;
-			}	
-			else
-			{
-			    chunk++;
-			}
-			
-		  	index++;
-			if (index >= NumPhysPages)
-			{
-				EndOfMem = TRUE;
-				index = 0; // to prevent an ASSERT inside Bitmap Test Function
-			}
-		}
-		if (chunk >= numPages) // can the new program fit into the memory chunk
-		{		       // possibly more memory to check
-			SpaceFound = TRUE;
-			printf("I found a chunk of memory starting at frame # %d \n",startingAddress );
-			return (startingAddress);
-		}
-		else			// if the chunk was too small, keep searching
-		{
-			chunk = 0;
-		}
-		printf("I'm done finding this memory chunk\n");
 
-		index ++;
-	}
-	if (chunk >= numPages)      // can the new program fit into the memory chunk
-	{			    // No more memory to check
-		SpaceFound = TRUE;
-	}
-	if (SpaceFound)
-	{
-		printf("I found a chunk of memory starting at frame # %d \n",index);
-		return (startingAddress);
-	}
-	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-		return(-1);
-	}
-	
-}
-//--------------------------------------------------------------------------------------------------------------------------------------
-// BestFit
-//
-//
-//
-//---------------------------------------------------------------------------------------------------------------------------------------
-//begin marcus and bradley
-int AddrSpace::BestFit () {
-	 int 	chunk = 0;	// the size of the available contiguous memory chunk
-	int  bestChunk = NumPhysPages;			
-	int 	index = 0;
-	int  bestStartingAddress =0;
-	int 	startingAddress = 0;
-	bool SpaceFound = FALSE;
-	bool    EndOfMem = FALSE;
-	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
-	{
-		printf(" BestFit: index is equal to %d \n",index);
-		// if MainMemMap->Test(index) == 0 then start consecutive pages
-		// or else you index and keep looking
-		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
-		{
-			if (chunk == 0)
-			{
-			    chunk++;
-			    startingAddress = index;
-			}	
-			else
-			{
-			    chunk++;
-			}
-			
-		  	index++;
-			if (index >= NumPhysPages)
-			{
-				EndOfMem = TRUE;
-				index = 0; // to prevent an ASSERT inside Bitmap Test Function
-			}
-		}
-		if (chunk >= numPages) // can the new program fit into the memory chunk
-		{		       // possibly more memory to check
-			if(chunk <= bestChunk)
-			{
-				bestChunk=chunk;
-				bestStartingAddress = startingAddress;
-				printf("I found a smaller chunk of memory starting at frame # %d \n",startingAddress);
-				SpaceFound = TRUE;
-			}
-			
-			
-		}
-		chunk = 0;
-		printf("I'm done finding this memory chunk\n");
-
-		index ++;
-	}
-	if (SpaceFound)
-	{
-		printf("I found the best chunk of memory starting at frame # %d \n",bestStartingAddress );
-		return (bestStartingAddress );
-	}
-	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-		return(-1);
-	}
-}
-//---------------------------------------------------------------------------------------------------------------------------------------
-// WorstFit
-//
-//
-//
-//---------------------------------------------------------------------------------------------------------------------------------------
-int AddrSpace::WorstFit () {
-	int 	chunk = 0;	// the size of the available contiguous memory chunk
-	int  worstChunk = 0;			
-	int 	index = 0;
-	int  worstStartingAddress =0;
-	int 	startingAddress = 0;
-	bool SpaceFound = FALSE;
-	bool    EndOfMem = FALSE;
-	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
-	{
-		printf(" worstFit: index is equal to %d \n",index);
-		// if MainMemMap->Test(index) == 0 then start consecutive pages
-		// or else you index and keep looking
-		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
-		{
-			if (chunk == 0)
-			{
-			    chunk++;
-			    startingAddress = index;
-			}	
-			else
-			{
-			    chunk++;
-			}
-			
-		  	index++;
-			if (index >= NumPhysPages)
-			{
-				EndOfMem = TRUE;
-				index = 0; // to prevent an ASSERT inside Bitmap Test Function
-			}
-		}
-		if (chunk >= numPages) // can the new program fit into the memory chunk
-		{		       // possibly more memory to check
-			if(chunk > worstChunk)
-			{
-				worstChunk=chunk;
-				worstStartingAddress = startingAddress;
-				SpaceFound = TRUE;
-			}
-			printf("I found a bigger chunk of memory starting at frame # %d \n",startingAddress);
-		}
-		chunk = 0;
-		printf("I'm done finding this memory chunk\n");
-
-		index ++;
-	}
-	if (SpaceFound)
-	{
-		printf("I found the worst chunk of memory starting at frame # %d \n",worstStartingAddress );
-		return (worstStartingAddress );
-	}
-	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-		return(-1);
-	}
-}
-
-// end Marcus and bradley
 
 
 // Pick the desired memory allocation algorithm
@@ -263,6 +61,14 @@ int AddrSpace::MemoryAllocation (void) {
 }
 
 // end Anderson
+
+
+
+
+
+
+
+
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the 
@@ -434,3 +240,92 @@ void AddrSpace::RestoreState()
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
 }
+
+// begin Marcus
+//-------------------------------------------------------------------------
+// FirstFit
+//
+//
+//-------------------------------------------------------------------------
+int AddrSpace::FirstFit () 
+{
+	int 	chunk = 0;				// the size of the available contiguous memory chunk
+	int 	index = 0;
+	int 	startingAddress = 0;
+	bool	SpaceFound = FALSE;
+	bool    EndOfMem = FALSE;
+	
+	while (!SpaceFound && index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	{
+		printf(" FirstFit: index is equal to %d \n",index);
+		// if MainMemMap->Test(index) == 0 then start consecutive pages
+		// or else you index and keep looking
+		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
+		{
+			if (chunk == 0)
+			{
+			    chunk++;
+			    startingAddress = index;
+			}	
+			else
+			{
+			    chunk++;
+			}
+			
+		  	index++;
+			if (index >= NumPhysPages)
+			{
+				EndOfMem = TRUE;
+				index = 0; // to prevent an ASSERT inside Bitmap Test Function
+			}
+		}
+		if (chunk >= numPages) // can the new program fit into the memory chunk
+		{		       // possibly more memory to check
+			SpaceFound = TRUE;
+			printf("I found a chunk of memory starting at frame # %d \n",index);
+			return (startingAddress);
+		}
+		else			// if the chunk was too small, keep searching
+		{
+			chunk = 0;
+		}
+		printf("I'm done finding this memory chunk\n");
+
+		index ++;
+	}
+	if (chunk >= numPages)      // can the new program fit into the memory chunk
+	{			    // No more memory to check
+		SpaceFound = TRUE;
+	}
+	if (SpaceFound)
+	{
+		printf("I found a chunk of memory starting at frame # %d \n",index);
+		return (startingAddress);
+	}
+	else
+	{
+		printf("There was not enough contiguous memory available for the new program\n");
+		return(-1);
+	}
+	
+}
+//--------------------------------------------------------------------------------------------------------------------------------------
+// BestFit
+//
+//
+//
+//---------------------------------------------------------------------------------------------------------------------------------------
+int AddrSpace::BestFit (void) {
+	return 222;
+}
+//---------------------------------------------------------------------------------------------------------------------------------------
+// WorstFit
+//
+//
+//
+//---------------------------------------------------------------------------------------------------------------------------------------
+int AddrSpace::WorstFit (void) {
+	return 333;
+}
+
+// end Marcus
