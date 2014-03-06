@@ -73,12 +73,20 @@ extern void ThreadPrint(int arg);
 //  Some threads also belong to a user address space; threads
 //  that only run in the kernel have a NULL address space.
 
+
 class Thread {
   private:
     // NOTE: DO NOT CHANGE the order of these first two members.
     // THEY MUST be in this position for SWITCH to work.
     int* stackTop;			 // the current stack pointer
     int machineState[MachineStateSize];  // all registers except for stackTop
+	
+	// begin Anderson
+	int PID;
+	
+	
+	
+	// end Anderson
 
   public:
     Thread(char* debugName);		// initialize a Thread 
@@ -103,7 +111,11 @@ class Thread {
     void Print() { printf("%s, ", name); }
 	
 	// begin Anderson
-	int GetId(void);
+	int GetId();
+	void CreatId();
+	
+//	int ParentPID;
+	
 	// end Anderson
   
   private:

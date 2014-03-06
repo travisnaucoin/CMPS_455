@@ -25,22 +25,25 @@
 					// stack overflows
 
 // begin Anderson
-int ProcessId = 0;	
+int ProcessId = 0;	// 0 denote no process
 Semaphore * PIDMutex = new Semaphore ("PIDMutex",1);			
 //----------------------------------------------------------------------
 // Thread::GetId
 // 	
 //----------------------------------------------------------------------					
-int Thread::GetId (void) 
+void Thread::CreatId () 
 {
 	PIDMutex -> P();
 	ProcessId++;
+	PID = ProcessId;
 	PIDMutex -> V();
-	return ProcessId;
+	printf("PID %u is created\n",PID);
 }					
 // end Anderson		
 	
-
+int Thread::GetId() {
+	return PID;
+}
 
 					
 //----------------------------------------------------------------------

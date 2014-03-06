@@ -16,7 +16,6 @@
 #include "stats.h"
 #include "timer.h"
 
-
 // begin Anderson
 #include "synch.h"
 // end Anderson
@@ -61,6 +60,34 @@ extern int CheckType (char *);
 extern int MemoryAllocation (void);
 extern int ProcessId;
 extern Semaphore * PIDMutex;
+extern int NumProcess;
+
+
+struct ProcessElement {
+	
+		ProcessElement * Next;
+		ProcessElement * Previous;
+		
+		Thread * CurrentThread;
+		int PID;
+		int ParentPID;
+		Semaphore * ProcessSemahpore;
+};
+
+class ProcessList {
+	public: 
+		ProcessList();
+		
+		bool IsEmpty();
+		void Append(ProcessElement *);
+		void Remove(ProcessElement *);
+		ProcessElement * Return(int PID); // if process exit, return true;
+		
+	private:
+		ProcessElement * Head;
+		ProcessElement * Tail;
+};
+
 // end Anderson
 
 #endif // SYSTEM_H

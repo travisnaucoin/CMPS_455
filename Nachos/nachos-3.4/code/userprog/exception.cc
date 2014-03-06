@@ -6,6 +6,14 @@
 //	syscall -- The user code explicitly requests to call a procedure
 //	in the Nachos kernel.  Right now, the only function we support is
 //	"Halt".
+//// exception.cc 
+//	Entry point into the Nachos kernel from user programs.
+//	There are two kinds of things that can cause control to
+//	transfer back to here from user code:
+//
+//	syscall -- The user code explicitly requests to call a procedure
+//	in the Nachos kernel.  Right now, the only function we support is
+//	"Halt".
 //
 //	exceptions -- The user code does something that the CPU can't handle.
 //	For instance, accessing memory that doesn't exist, arithmetic errors,
@@ -59,12 +67,122 @@ static void SWrite(char *buffer, int size, int id);
 //----------------------------------------------------------------------
 
 // begin Anderson
+
+
+ProcessList::ProcessList () {
+	Head = NULL;
+	Tail = NULL;
+}
+
+ProcessList * PCB = new ProcessList ();
+
+bool ProcessList::IsEmpty() {
+	if (Head == NULL)
+		return true;
+	else
+		return false;
+}
+
+void ProcessList::Append(ProcessElement * Current) {
+	ProcessElement * Old = new ProcessElement;
+	if (IsEmpty()) {
+		Head = Current;
+		Tail = Current;
+	} else {
+		Old = Tail;
+		Tail->Next = Current;
+		Tail = Current;
+		Tail->Previous = Old;
+	}
+	delete Old;
+}
+
+void ProcessList::Remove(ProcessElement * Current) {
+	
+	if (IsEmpty()) 
+	return;
+
+	// Update Head and Tail ptr
+	if (Current == Head) {
+		Head = Current->Next;
+		Current->Next->Previous = NULL;
+	} else if (Current == Tail) {
+		Tail = Current->Previous;
+		Current->Previous->Next = NULL;
+	} else {
+		Current->Previous->Next = Current->Next;
+		Current->Next->Previous = Current->Previous;
+	}
+		
+}
+
+ProcessElement * ProcessList::Return(int PID) {
+	if (IsEmpty()) 
+	return NULL;
+	
+	ProcessElement * node = new ProcessElement;
+	node = Head;
+	do {
+		if ((*node).PID == PID) 
+			return node;
+		else
+			node = node->Next;
+	} while (node != Tail);
+	
+	// check the tail node
+	if ((*node).PID != PID)
+		return NULL;
+	else
+		return node;	
+}
+
+ 
+void CleanupExit() {
+	int PID;
+	PID = currentThread->GetId();
+	ProcessElement * ElementTemp = new ProcessElement;
+	// Clean up PCB entry
+	if (PCB->Return(PID) != NULL) {
+		ElementTemp = PCB->Return(PID);
+		PCB->Remove(ElementTemp);
+	}
+	
+	// Free up memory frame.
+	// currentThread->space->freeFrames();
+	// DEBUG('x', "Finished cleaning up allocated frames for process %s\n", currentThread->getName());
+	
+	//DEBUG('z', "Just before unblocking, Semaphore (0x%x)\n", currentThread->space->getPCB()->parentBlockSem);
+	
+	// Find out and wake up the parent thread.
+	int ParentPID;
+	if ((*ElementTemp).ParentPID != 0){
+		ParentPID = (*ElementTemp).PID;
+		PCB->Return(ParentPID)->ProcessSemahpore->V();	
+	}
+	
+//	procTable->removeProcess(pid);
+	if (--NumProcess > 0)   
+		currentThread->Finish();
+	else
+		interrupt->Halt();   //no other processes left 
+}
+
 void processCreator (int PID) {
+	printf("hahahahah, %u\n", PID);
+	currentThread->Yield();
 	currentThread->space->InitRegisters();
 	currentThread->space->RestoreState(); // load page table register
+						
 	printf ("Process %u being forked \n", PID);
 	machine->Run(); // jump to the user progam
 	ASSERT(FALSE); // machine->Run never returns;	
+}
+
+void AdvancePC() {
+	// Advance program counters.
+	machine->registers[PrevPCReg] = machine->registers[PCReg];
+	machine->registers[PCReg] = machine->registers[NextPCReg];
+	machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
 }
 
 // end Anderson
@@ -87,12 +205,8 @@ ExceptionHandler(ExceptionType which)
 		case NoException :
 			break;
 		case SyscallException :
-
-			// for debugging, in case we are jumping into lala-land
-			// Advance program counters.
-			machine->registers[PrevPCReg] = machine->registers[PCReg];
-			machine->registers[PCReg] = machine->registers[NextPCReg];
-			machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
+			
+			AdvancePC();
 
 			switch ( type )	// values are specified in syscall.h
 			{
@@ -101,51 +215,87 @@ ExceptionHandler(ExceptionType which)
 				{
 					int AddrFile = machine -> ReadRegister(4);
 					char * filename = new char [128];
-					int * ValTemp;
-					if(!machine->ReadMem(AddrFile,1,ValTemp)) {
+					int ValTemp;
+					
+					if(!machine->ReadMem(AddrFile,1,&ValTemp)) {
 						printf("VA to PA translation fails when open file \n");
 						return;
 					}
+
 					i=0;
-					while( *ValTemp!=0 )
+					
+					while( ValTemp != 0 )
 					{
-						filename[i]=*ValTemp + i;
+						filename[i]=(char)ValTemp;
+						//printf("%uth letter is %s \n",i,filename[i]);
 						//*ValTemp+=1;
 						i++;
-						//if(!machine->ReadMem(AddrFile,1,ValTemp))return;
+						AddrFile+=1;
+						if(!machine->ReadMem(AddrFile,1,&ValTemp))return;
 					}
 					filename[i]=(char)0;
 					
-					OpenFile *executable1 = fileSystem->Open(filename);
+
+					OpenFile *executable = fileSystem->Open(filename);
+					
+					if (executable == NULL) {
+						printf("Error, unable to open file: [%s]\n", filename);   ///ABORT program?
+						CleanupExit();
+						return;
+					}
+					
+					printf ("Read file: \"%s\"\n",filename);
 					delete filename;
-					delete ValTemp;
 					AddrSpace *space;
-					space = new AddrSpace(executable1);
+					space = new AddrSpace(executable);
 					Thread * t = new Thread("SyscallThread");
 					t->space = space;
-					delete executable1;
-					int PID = t->GetId();	
-					t -> Fork(processCreator,PID);								
+					delete executable;
+					t->CreatId();
+					int PID = t->GetId();
+					
+					// Update PCB
+					ProcessElement * ProcessTemp = new ProcessElement;
+					(*ProcessTemp).ParentPID = currentThread->GetId();
+					(*ProcessTemp).PID = PID;
+					ProcessTemp->CurrentThread = t;
+					ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
+					ProcessTemp->Next = NULL;
+					ProcessTemp->Previous = NULL;
+					PCB->Append(ProcessTemp);
+					machine->WriteRegister(2, PID);
+					++NumProcess;
+					t -> Fork(processCreator,PID); 
+					printf("End SC_Exec, %u\n", PID);
+					// for debugging, in case we are jumping into lala-land
+					//AdvancePC();
 					break;
 				// End Anderson
 				}
 				
 				case SC_Join :
-				{
-					
-				
-				
-				
+				{ 	
+					printf("SC_Join is called \n");
+					int ChildPID, ParentPID;
+					ChildPID = machine->ReadRegister(4); // 1st parameter
+					if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
+						ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
+						PCB->Return(ParentPID)->ProcessSemahpore->P();
+						machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
+					} else {
+						machine->WriteRegister(2, -1);	// Child already exits.
+					}
+					//AdvancePC();					
 				}
 				
 				case SC_Exit : 
 				{
-				
+					CleanupExit();
 				}
 				
 				case SC_Yield : 
 				{
-					
+					currentThread->Yield();
 				}
 				
 				case SC_Halt :
@@ -165,6 +315,7 @@ ExceptionHandler(ExceptionType which)
 					machine->WriteRegister(2, Result);  // Anderson: the result of syscall must be put back to reg2
 					DEBUG('t',"Read %d bytes from the open file(OpenFileId is %d)",
 					arg2, arg3);
+					//AdvancePC();
 					break;
 				}
 
@@ -191,7 +342,8 @@ ExceptionHandler(ExceptionType which)
 					default :
 					//Unprogrammed system calls end up here
 					break;
-				}         
+				} 
+				//AdvancePC();
 				break;
 			}
 			
@@ -199,6 +351,7 @@ ExceptionHandler(ExceptionType which)
 			puts ("ReadOnlyException");
 			if (currentThread->getName() == "main")
 			ASSERT(FALSE);  //Not the way of handling an exception.
+			puts ("test\n");
 			//SExit(1);
 			break;
 		case BusErrorException :
@@ -239,6 +392,7 @@ ExceptionHandler(ExceptionType which)
 			//      SExit(1);
 			break;
 		}
+	
 	delete [] ch;
 }
 
@@ -295,5 +449,3 @@ static void SWrite(char *buffer, int size, int id)
 	if (id >= 2)
 	WriteFile(id,buffer,size);
 }
-
-// end FA98

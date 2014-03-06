@@ -20,6 +20,8 @@
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
 //----------------------------------------------------------------------
+int NumProcess = 0;
+extern ProcessList * PCB;
 
 void
 StartProcess(char *filename)
@@ -27,12 +29,23 @@ StartProcess(char *filename)
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
     if (executable == NULL) {
-	printf("Unable to open file %s\n", filename);
+		printf("Unable to open file %s\n", filename);
 	return;
     }
     space = new AddrSpace(executable);    
-    currentThread->space = space;
+    currentThread->space = space; // Anderson: where the currentThread is created?
+	currentThread->CreatId();
 	int PID = currentThread->GetId();
+	ProcessElement * ProcessTemp = new ProcessElement;
+	(*ProcessTemp).ParentPID = 0;
+	(*ProcessTemp).PID = PID;
+	printf("PID %u is assigned\n",(*ProcessTemp).PID);
+	ProcessTemp->CurrentThread = currentThread;
+	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
+	ProcessTemp->Next = NULL;
+	ProcessTemp->Previous = NULL;
+	PCB->Append(ProcessTemp);
+	++NumProcess;
 	printf("Process %u PID is created \n",PID);
     delete executable;			// close file
 
