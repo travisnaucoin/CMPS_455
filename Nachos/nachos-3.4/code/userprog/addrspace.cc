@@ -48,7 +48,7 @@ int AddrSpace::FirstFit ()
 	bool	SpaceFound = FALSE;
 	bool    EndOfMem = FALSE;
 	
-	while (!SpaceFound && index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	while (!SpaceFound && index < NumPhysPages && !EndOfMem)  // stay in loop until either a space is found or i've searched the entire memory
 	{
 		printf(" FirstFit: index is equal to %d \n",index);
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
@@ -118,7 +118,7 @@ int AddrSpace::BestFit () {
 	bool SpaceFound = FALSE;
 	bool    EndOfMem = FALSE;
 	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	while (index < NumPhysPages && !EndOfMem)  // stay in loop until either a space is found or i've searched the entire memory
 	{
 		printf(" BestFit: index is equal to %d \n",index);
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
@@ -185,7 +185,7 @@ int AddrSpace::WorstFit () {
 	bool SpaceFound = FALSE;
 	bool    EndOfMem = FALSE;
 	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	while (index < NumPhysPages && !EndOfMem)  // stay in loop until either a space is found or i've searched the entire memory
 	{
 		printf(" worstFit: index is equal to %d \n",index);
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
