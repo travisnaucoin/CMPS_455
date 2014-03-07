@@ -554,6 +554,26 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
+	unsigned int i;
+	// deleting program from memory
+	for (i = 0; i < numPages; i++) 
+	{
+		DEBUG('z', "Zeroing frame number %d starting at 0x%x\n", pageTable[i].physicalPage,
+						pageTable[i].physicalPage*PageSize);
+		bzero( &(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize);
+	} 
+
+	printf("Here is the bitmap before the destructor clears it \n");
+	MainMemMap->Print();
+	// deleting bitmap
+        for (i = 0; i < numPages; i++) 
+        {
+		
+	   MainMemMap->Clear(i+StartHere);
+		
+	}
+	printf("Here is the bitmap after the destructor clear it \n");
+	MainMemMap->Print();
    delete pageTable;
   // Anderson: what about bit map? 
 }
