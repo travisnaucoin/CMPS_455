@@ -46,7 +46,7 @@ StartProcess(char *filename)
 	ProcessTemp->PID = PID;
 	printf("PID %u is assigned\n",ProcessTemp->PID);
 	ProcessTemp->CurrentThread = currentThread;
-	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
+	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 	ProcessTemp->Next = ProcessTemp;
 	ProcessTemp->Previous = ProcessTemp;	
 	PCB->Append(ProcessTemp);
@@ -57,9 +57,8 @@ StartProcess(char *filename)
 
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register
-	printf("HAHAHA\n");
+
     machine->Run();			// jump to the user progam
-	
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
 					// by doing the syscall "exit"

@@ -46,7 +46,7 @@ class AddrSpace {
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
-	int physicalAddress;
+//	int physicalAddress;
 	int     StartHere;
 	
 };

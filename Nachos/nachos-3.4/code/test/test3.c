@@ -10,6 +10,5 @@ int main() {
 
 	i = i + j;
 	
-	
 //	Exit(1);
 }

@@ -90,20 +90,22 @@ void ProcessList::Append(ProcessElement * Current) {
 	ProcessElement * Old = new ProcessElement;
 	if (IsEmpty()) {
 		printf("Empty!!!!\n");
+		printf ("Trying to add process %u in PCB\n",Current->PID);
 		Head = Current;
-		printf("Head PID is %d\n",(*Head).PID);
+		//printf("Head PID is %d\n",(*Head).PID);
 		Tail = Current;
-		printf("Head address is %d\n",(int)Head);
-		printf("Tail address is %d\n",(int)Tail);
+		//printf("Head address is %d\n",(int)Head);
+		//printf("Tail address is %d\n",(int)Tail);
 	} else {
+		printf ("Trying to add process %u in PCB\n",Current->PID);
 		Old = Tail;
-		printf("Old address is %d\n",(int)Old);
+		//printf("Old address is %d\n",(int)Old);
 		//(*Tail).Next = Current;
 		Tail -> Next = Current;
 		Tail = Current;
 		Tail -> Previous = Old;
-		printf("Head address is %d\n",(int)Head);
-		printf("Tail address is %d\n",(int)Tail);
+		//printf("Head address is %d\n",(int)Head);
+		//printf("Tail address is %d\n",(int)Tail);
 		//(*Tail).Previous = Old;
 	}
 	// delete Old;
@@ -136,16 +138,17 @@ ProcessElement * ProcessList::Return(int PID) {
 	node = Head;
 	
 	do {
-		//if ((*node).PID == PID) 
 		if (node->PID == PID) 
 			return node;
 		else
-			printf("Current PID is %u\n",node->PID);
+			//printf("Current PID is %u\n",node->PID);
 			node = node->Next;
-			if (node ==  NULL) printf("OMG\n\n");
-			printf("PID change to%u\n",node->PID);
+			// if (node ==  NULL) printf("OMG\n\n");
+			//printf("PID change to%u\n",node->PID);
 	} while (node->PID != Tail->PID);
-	printf("ProcessList::Return is called.\n");
+	
+	// printf("Search for process %u in PCB.\n", PID);
+	
 	// check the tail node
 	if (node->PID != PID)
 		return NULL;
@@ -168,16 +171,20 @@ void CleanupExit() {
 	
 	// Free up memory frame.
 	// currentThread->space->freeFrames();
+	delete currentThread->space;
 	// DEBUG('x', "Finished cleaning up allocated frames for process %s\n", currentThread->getName());
 	
 	//DEBUG('z', "Just before unblocking, Semaphore (0x%x)\n", currentThread->space->getPCB()->parentBlockSem);
 	
 	// Find out and wake up the parent thread.
-	int ParentPID;
-	if ((*ElementTemp).ParentPID != 0){
-		ParentPID = (*ElementTemp).PID;
-		PCB->Return(ParentPID)->ProcessSemahpore->V();	
+	printf("Memory space for process %u is deleted\n", PID);
+	
+	int ParentPID = ElementTemp->ParentPID;;
+	if (ParentPID != 0){		
+		PCB->Return(ParentPID)->ProcessSemahpore->V();
+		printf("Wake up\n");
 	}
+	printf("sfsfsdfsdf\n");
 	
 //	procTable->removeProcess(pid);
 	if (--NumProcess > 0)   
@@ -187,12 +194,12 @@ void CleanupExit() {
 }
 
 void processCreator (int PID) {
-	printf("hahahahah, %u\n", PID);
+	printf ("Process %u will yield. \n", PID);
 	currentThread->Yield();
 	currentThread->space->InitRegisters();
 	currentThread->space->RestoreState(); // load page table register
 						
-	printf ("Process %u being forked \n", PID);
+	printf ("Process %u being executed. \n", PID);
 	machine->Run(); // jump to the user progam
 	ASSERT(FALSE); // machine->Run never returns;	
 }
@@ -253,12 +260,12 @@ ExceptionHandler(ExceptionType which)
 					filename[i]=(char)0;
 				
 					OpenFile *executable = fileSystem->Open(filename);
-					
+					/*
 					if (executable == NULL) {
 						printf("Error, unable to open file: [%s]\n", filename);   ///ABORT program?
 						CleanupExit();
 						return;
-					}
+					}*/
 					
 					printf ("Read file:\"%s\"\n",filename);
 					delete filename;
@@ -284,7 +291,7 @@ ExceptionHandler(ExceptionType which)
 						ProcessTemp->PID = PID;
 						printf("PID %u is store in PCB as %u\n",PID,ProcessTemp->PID);
 						ProcessTemp->CurrentThread = t;
-						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
+						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 						ProcessTemp->Next = ProcessTemp;
 						ProcessTemp->Previous = ProcessTemp;
 						PCB->Append(ProcessTemp);
@@ -294,7 +301,8 @@ ExceptionHandler(ExceptionType which)
 						t -> Fork(processCreator,PID); 
 						printf("End SC_Exec, %u\n", PID);
 						// end: Protential Problem
-					}
+					} else 
+						machine->WriteRegister(2, 0); // return 0 indicating no process is created.
 					AdvancePC();
 					delete executable;
 					break;
@@ -306,24 +314,28 @@ ExceptionHandler(ExceptionType which)
 					printf("SC_Join is called \n");
 					int ChildPID, ParentPID;
 					ChildPID = machine->ReadRegister(4); // 1st parameter
-					printf("Prepare to Join ChildProcess %u\n",ChildPID);
-					if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
-						
-						ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
-						printf("Will put parent process %u to sleep\n", ParentPID);
-						PCB->Return(ParentPID)->ProcessSemahpore->P();
-						machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
-					} else {
-						machine->WriteRegister(2, -1);	// Child already exits.
-					}
-					AdvancePC();
+					if (ChildPID != 0) {
+						printf("Prepare to Join ChildProcess %u\n",ChildPID);
+						if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
+							
+							ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
+							printf("Will put parent process %u to sleep\n", ParentPID);
+							PCB->Return(ParentPID)->ProcessSemahpore->P();
+							machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
+						} else {
+							machine->WriteRegister(2, -1);	// Child already exits.
+						}
+						AdvancePC();
+					} else
+						machine->WriteRegister(2, -2);	// There is no child process.
 					break;
 				}
 				
 				case SC_Exit : 
 				{
 					CleanupExit();
-					//AdvancePC();
+					// AdvancePC();
+					//printf("YAYAYAYAYAY\n");
 					break;
 				}
 				
