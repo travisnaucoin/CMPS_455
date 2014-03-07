@@ -70,11 +70,14 @@ static void SWrite(char *buffer, int size, int id);
 
 
 ProcessList::ProcessList () {
+	Head = new ProcessElement;
+	Tail = new ProcessElement;
 	Head = NULL;
 	Tail = NULL;
 }
 
-ProcessList * PCB = new ProcessList ();
+//ProcessList * PCB = new ProcessList ();
+extern ProcessList * PCB;
 
 bool ProcessList::IsEmpty() {
 	if (Head == NULL)
@@ -86,15 +89,24 @@ bool ProcessList::IsEmpty() {
 void ProcessList::Append(ProcessElement * Current) {
 	ProcessElement * Old = new ProcessElement;
 	if (IsEmpty()) {
+		printf("Empty!!!!\n");
 		Head = Current;
+		printf("Head PID is %d\n",(*Head).PID);
 		Tail = Current;
+		printf("Head address is %d\n",(int)Head);
+		printf("Tail address is %d\n",(int)Tail);
 	} else {
 		Old = Tail;
-		Tail->Next = Current;
+		printf("Old address is %d\n",(int)Old);
+		//(*Tail).Next = Current;
+		Tail -> Next = Current;
 		Tail = Current;
-		Tail->Previous = Old;
+		Tail -> Previous = Old;
+		printf("Head address is %d\n",(int)Head);
+		printf("Tail address is %d\n",(int)Tail);
+		//(*Tail).Previous = Old;
 	}
-	delete Old;
+	// delete Old;
 }
 
 void ProcessList::Remove(ProcessElement * Current) {
@@ -122,18 +134,25 @@ ProcessElement * ProcessList::Return(int PID) {
 	
 	ProcessElement * node = new ProcessElement;
 	node = Head;
+	
 	do {
-		if ((*node).PID == PID) 
+		//if ((*node).PID == PID) 
+		if (node->PID == PID) 
 			return node;
 		else
+			printf("Current PID is %u\n",node->PID);
 			node = node->Next;
-	} while (node != Tail);
-	
+			if (node ==  NULL) printf("OMG\n\n");
+			printf("PID change to%u\n",node->PID);
+	} while (node->PID != Tail->PID);
+	printf("ProcessList::Return is called.\n");
 	// check the tail node
-	if ((*node).PID != PID)
+	if (node->PID != PID)
 		return NULL;
 	else
 		return node;	
+		
+	delete node;
 }
 
  
@@ -257,14 +276,19 @@ ExceptionHandler(ExceptionType which)
 						
 						// begin: Protential Problem 
 						// Update PCB
+						//ProcessList * PCB = new ProcessList ();
+						
 						ProcessElement * ProcessTemp = new ProcessElement;
-						(*ProcessTemp).ParentPID = currentThread->GetId();
-						(*ProcessTemp).PID = PID;
+						ProcessTemp->ParentPID = currentThread->GetId();
+						printf("ParentPID %u is store in PCB as %u\n",currentThread->GetId(),ProcessTemp->ParentPID);
+						ProcessTemp->PID = PID;
+						printf("PID %u is store in PCB as %u\n",PID,ProcessTemp->PID);
 						ProcessTemp->CurrentThread = t;
 						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
-						ProcessTemp->Next = NULL;
-						ProcessTemp->Previous = NULL;
+						ProcessTemp->Next = ProcessTemp;
+						ProcessTemp->Previous = ProcessTemp;
 						PCB->Append(ProcessTemp);
+						
 						machine->WriteRegister(2, PID);
 						++NumProcess;
 						t -> Fork(processCreator,PID); 
@@ -282,8 +306,11 @@ ExceptionHandler(ExceptionType which)
 					printf("SC_Join is called \n");
 					int ChildPID, ParentPID;
 					ChildPID = machine->ReadRegister(4); // 1st parameter
+					printf("Prepare to Join ChildProcess %u\n",ChildPID);
 					if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
+						
 						ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
+						printf("Will put parent process %u to sleep\n", ParentPID);
 						PCB->Return(ParentPID)->ProcessSemahpore->P();
 						machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
 					} else {

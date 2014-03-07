@@ -89,6 +89,7 @@ class ProcessList {
 };
 
 // end Anderson
+extern ProcessList * PCB;
 
 #endif // SYSTEM_H
 
