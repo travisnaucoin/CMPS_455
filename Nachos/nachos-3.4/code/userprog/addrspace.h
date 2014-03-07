@@ -32,15 +32,23 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
 	// begin Anderson
-    int FirstFit();    int BestFit ();	
-    int WorstFit ();
-    int MemoryAllocation (void);
+    void FirstFit();
+    void BestFit ();	
+    void WorstFit ();
+    void MemoryAllocation (void);
+	//ExceptionType Translate(int, int*, int, bool);
+	ExceptionType Translate(int, int *, int);
+	void LoadSegment(OpenFile *, int, int, int); 
+	bool	SpaceFound;
 	// end Anderson
   private:
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
+	int physicalAddress;
+	int     StartHere;
+	
 };
 
 #endif // ADDRSPACE_H

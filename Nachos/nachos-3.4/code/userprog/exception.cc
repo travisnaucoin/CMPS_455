@@ -199,20 +199,18 @@ ExceptionHandler(ExceptionType which)
 	int Result;
 	int i, j;
 	char *ch = new char [500];
-
+	
 	switch ( which )
 	{
 		case NoException :
 			break;
-		case SyscallException :
-			
-			AdvancePC();
-
+		case SyscallException :		
+			//AdvancePC();
 			switch ( type )	// values are specified in syscall.h
 			{
 			// begin Anderson
 				case SC_Exec : 
-				{
+				{	
 					int AddrFile = machine -> ReadRegister(4);
 					char * filename = new char [128];
 					int ValTemp;
@@ -234,8 +232,7 @@ ExceptionHandler(ExceptionType which)
 						if(!machine->ReadMem(AddrFile,1,&ValTemp))return;
 					}
 					filename[i]=(char)0;
-					
-
+				
 					OpenFile *executable = fileSystem->Open(filename);
 					
 					if (executable == NULL) {
@@ -244,31 +241,38 @@ ExceptionHandler(ExceptionType which)
 						return;
 					}
 					
-					printf ("Read file: \"%s\"\n",filename);
+					printf ("Read file:\"%s\"\n",filename);
 					delete filename;
+					
 					AddrSpace *space;
 					space = new AddrSpace(executable);
-					Thread * t = new Thread("SyscallThread");
-					t->space = space;
-					delete executable;
-					t->CreatId();
-					int PID = t->GetId();
 					
-					// Update PCB
-					ProcessElement * ProcessTemp = new ProcessElement;
-					(*ProcessTemp).ParentPID = currentThread->GetId();
-					(*ProcessTemp).PID = PID;
-					ProcessTemp->CurrentThread = t;
-					ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
-					ProcessTemp->Next = NULL;
-					ProcessTemp->Previous = NULL;
-					PCB->Append(ProcessTemp);
-					machine->WriteRegister(2, PID);
-					++NumProcess;
-					t -> Fork(processCreator,PID); 
-					printf("End SC_Exec, %u\n", PID);
-					// for debugging, in case we are jumping into lala-land
-					//AdvancePC();
+					if (space->SpaceFound == true) {
+						printf("Memory Allocation Succeeds \n");
+						Thread * t = new Thread("SyscallThread");
+						t->space = space;
+						t->CreatId();
+						int PID = t->GetId();
+						printf("PID %u is assigned!\n", PID);
+						
+						// begin: Protential Problem 
+						// Update PCB
+						ProcessElement * ProcessTemp = new ProcessElement;
+						(*ProcessTemp).ParentPID = currentThread->GetId();
+						(*ProcessTemp).PID = PID;
+						ProcessTemp->CurrentThread = t;
+						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",1);
+						ProcessTemp->Next = NULL;
+						ProcessTemp->Previous = NULL;
+						PCB->Append(ProcessTemp);
+						machine->WriteRegister(2, PID);
+						++NumProcess;
+						t -> Fork(processCreator,PID); 
+						printf("End SC_Exec, %u\n", PID);
+						// end: Protential Problem
+					}
+					AdvancePC();
+					delete executable;
 					break;
 				// End Anderson
 				}
@@ -285,22 +289,28 @@ ExceptionHandler(ExceptionType which)
 					} else {
 						machine->WriteRegister(2, -1);	// Child already exits.
 					}
-					//AdvancePC();					
+					AdvancePC();
+					break;
 				}
 				
 				case SC_Exit : 
 				{
 					CleanupExit();
+					//AdvancePC();
+					break;
 				}
 				
 				case SC_Yield : 
 				{
 					currentThread->Yield();
+					AdvancePC();
+					break;
 				}
 				
 				case SC_Halt :
 				{
 					DEBUG('t', "Shutdown, initiated by user program.\n");
+					AdvancePC();
 					interrupt->Halt();
 					break;
 				}
@@ -315,7 +325,7 @@ ExceptionHandler(ExceptionType which)
 					machine->WriteRegister(2, Result);  // Anderson: the result of syscall must be put back to reg2
 					DEBUG('t',"Read %d bytes from the open file(OpenFileId is %d)",
 					arg2, arg3);
-					//AdvancePC();
+					AdvancePC();
 					break;
 				}
 
@@ -337,21 +347,25 @@ ExceptionHandler(ExceptionType which)
 						DEBUG('t', "\nWrite %d bytes from %s to the open file(OpenFileId is %d).", arg2, ch, arg3);
 						SWrite(ch, j, arg3);
 					}
+					AdvancePC();
 					break;
-
-					default :
-					//Unprogrammed system calls end up here
-					break;
-				} 
-				//AdvancePC();
+				}
+				
+				default :
+				//Unprogrammed system calls end up here
 				break;
+	 
+				//AdvancePC();
+				
 			}
-			
+			break;
+	
 		case ReadOnlyException :
 			puts ("ReadOnlyException");
 			if (currentThread->getName() == "main")
 			ASSERT(FALSE);  //Not the way of handling an exception.
 			puts ("test\n");
+			
 			//SExit(1);
 			break;
 		case BusErrorException :
@@ -375,6 +389,7 @@ ExceptionHandler(ExceptionType which)
 		case IllegalInstrException :
 			puts ("IllegalInstrException");
 			if (currentThread->getName() == "main")
+			AdvancePC();
 			ASSERT(FALSE);  //Not the way of handling an exception.
 			//SExit(1);
 			break;
@@ -385,13 +400,13 @@ ExceptionHandler(ExceptionType which)
 			//SExit(1);
 			break;
 
-			default :
-			//      printf("Unexpected user mode exception %d %d\n", which, type);
-			//      if (currentThread->getName() == "main")
-			//      ASSERT(FALSE);
-			//      SExit(1);
-			break;
-		}
+		default :
+		//      printf("Unexpected user mode exception %d %d\n", which, type);
+		//      if (currentThread->getName() == "main")
+		//      ASSERT(FALSE);
+		//      SExit(1);
+		break;
+	}
 	
 	delete [] ch;
 }
