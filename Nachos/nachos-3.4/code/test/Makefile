@@ -78,3 +78,16 @@ test1.o: test1.c
 test1: test1.o start.o
 	$(LD) $(LDFLAGS) start.o test1.o -o test1.coff
 	../bin/coff2noff test1.coff test1
+	
+test2.o: test2.c
+	$(CC) $(CFLAGS) -c test2.c
+test2: test2.o start.o
+	$(LD) $(LDFLAGS) start.o test2.o -o test2.coff
+	../bin/coff2noff test2.coff test2
+	
+test3.o: test3.c
+	$(CC) $(CFLAGS) -c test3.c
+test3: test3.o start.o
+	$(LD) $(LDFLAGS) start.o test3.o -o test3.coff
+	../bin/coff2noff test3.coff test3
+	
