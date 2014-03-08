@@ -32,11 +32,10 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
 	// begin Anderson
-    void FirstFit();
-    void BestFit ();	
+    void FirstFit();    void BestFit ();	
     void WorstFit ();
-    void MemoryAllocation (void);
-	//ExceptionType Translate(int, int*, int, bool);
+    void MemoryAllocation (int);
+	void CleanupExit(void);
 	ExceptionType Translate(int, int *, int);
 	void LoadSegment(OpenFile *, int, int, int); 
 	bool	SpaceFound;

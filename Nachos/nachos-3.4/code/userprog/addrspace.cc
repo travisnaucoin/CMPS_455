@@ -22,23 +22,25 @@
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
-#include "bitmap.h" // Marcus
 
-
-// begin Anderson
 // Memory allocation algorithm definition
-extern char * MemAlgSelArgs;
-extern int CheckType (char *);
-// begin Marcus
+extern BitMap *MainMemMap;
+extern int MemAll;
 
-BitMap *MainMemMap = new BitMap(NumPhysPages);
+// Pick the desired memory allocation algorithm
+// Return the starting physical address of the available memory frame
 
+void AddrSpace::MemoryAllocation (int i) {
+	if (i == 0) 
+		FirstFit();
+	else if (i == 1)
+		BestFit();
+	else if (i == 2) 
+		WorstFit();
+}
 
-// begin Marcus
 //-------------------------------------------------------------------------
 // FirstFit
-//
-//
 //-------------------------------------------------------------------------
 void AddrSpace::FirstFit () 
 {
@@ -47,23 +49,20 @@ void AddrSpace::FirstFit ()
 	int 	startingAddress = 0;
 	bool    EndOfMem = FALSE;
 	SpaceFound = false;
-	printf("First Fit is Called;\n");
+	
 	while (!SpaceFound && index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
 	{		
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
 		// or else you index and keep looking
 		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
 		{
-			//printf(" memory frame %d is available\n",index);
 			if (chunk == 0)
 			{
 			    chunk++;
 			    startingAddress = index;
 			}	
 			else
-			{
 			    chunk++;
-			}
 			
 		  	index++;
 			if (index >= NumPhysPages)
@@ -72,179 +71,38 @@ void AddrSpace::FirstFit ()
 				index = 0; // to prevent an ASSERT inside Bitmap Test Function
 			}
 		}
+		/*
 		if (!EndOfMem)
 			printf(" memory frame %d is occupied! \n",index);
-			
+		*/	
 		if (chunk >= numPages) // can the new program fit into the memory chunk
 		{		       // possibly more memory to check
 			SpaceFound = TRUE;
-			printf("I found a chunk of memory starting at frame # %d for %u Frames \n",startingAddress, chunk );
+			printf("%u frames are found starting from Frame %u. \n",chunk,startingAddress);
 			StartHere = startingAddress;
 			return;
 		}
 		else			// if the chunk was too small, keep searching
-		{
-			chunk = 0;
-		}
-		// printf("I'm done finding this memory chunk\n");
-
+			chunk = 0;	
+			
 		index ++;
 	}
+	
 	if (chunk >= numPages)      // can the new program fit into the memory chunk
-	{			    // No more memory to check
+		// No more memory to check		    
 		SpaceFound = TRUE;
-	}
 	
 	if (SpaceFound)
 	{
-		printf("I found a chunk of memory starting at frame # %d for %u Frames \n",startingAddress, chunk );
+		printf("%u frames are found starting from Frame %u. \n",chunk,startingAddress);
 		StartHere = startingAddress;			
 	}
 	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-	}
+		printf("Not enough contiguous memory for the process.\n");
 	return;
-//	return (SpaceFound);
-}
-void AddrSpace::BestFit () {
-
-}
-void AddrSpace::WorstFit () {
-
-}
-/*
-ExceptionType
-AddrSpace::Translate(int virtAddr, int* physAddr, int size, bool writing)
-{
-    int i;
-    unsigned int vpn, offset;
-    TranslationEntry *entry;
-    unsigned int pageFrame;
-
-    DEBUG('a', "\tTranslate 0x%x, %s: ", virtAddr, writing ? "write" : "read");
-
-// check for alignment errors
-    if (((size == 4) && (virtAddr & 0x3)) || ((size == 2) && (virtAddr & 0x1))){
-	DEBUG('a', "alignment problem at %d, size %d!\n", virtAddr, size);
-	return AddressErrorException;
-    }
-    
-    // we must have a page table, but not both!
-    //ASSERT(pageTable == NULL);	
-    //ASSERT(pageTable != NULL);	
-
-// calculate the virtual page number, and offset within the page,
-// from the virtual address
-    vpn = (unsigned) virtAddr / PageSize;
-    offset = (unsigned) virtAddr % PageSize;
-    
-
-	if (vpn >= numPages) {
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, numPages);
-	    return AddressErrorException;
-	}
-	else if (!pageTable[vpn].valid) {
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, numPages);
-	    return PageFaultException;
-	}
-	entry = &pageTable[vpn];
-    
-    if (entry->readOnly && writing) {	// trying to write to a read-only page
-	DEBUG('a', "%d mapped read-only at %d in TLB!\n", virtAddr, i);
-	return ReadOnlyException;
-    }
-    pageFrame = entry->physicalPage;
-
-    // if the pageFrame is too big, there is something really wrong! 
-    // An invalid translation was loaded into the page table. 
-    if (pageFrame >= NumPhysPages) { 
-	DEBUG('a', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
-	return BusErrorException;
-    }
-    entry->use = TRUE;		// set the use, dirty bits
-    if (writing)
-	entry->dirty = TRUE;
-    *physAddr = pageFrame * PageSize + offset;
-    ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
-    DEBUG('a', "phys addr = 0x%x\n", *physAddr);
-    return NoException;
-}
-*/
-
-void AddrSpace::LoadSegment(OpenFile *executable, int addr, int size, int inFileAddr) {
-    
-	int physAddr, loops;
-	
-	//translate for block not starting at the beginning of a page
-	if (addr % PageSize) {
-		Translate(addr,&physAddr,size % PageSize);
-		DEBUG('z',"1.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr,size % PageSize);
-		executable->ReadAt(& (machine->mainMemory[physAddr]), size % PageSize, inFileAddr);
-		size -=  (size % PageSize);
-		addr += (size % PageSize);
-		inFileAddr += (size % PageSize);
-	}
-	loops = size/PageSize;
-	//translate for blocks starting at the beginning of a page and allocating the whole page
-	for (int i=0; i<loops ; i++){
-		Translate(addr,&physAddr,PageSize);
-		DEBUG('z',"2.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr, PageSize);
-		executable->ReadAt(& (machine->mainMemory[physAddr]), PageSize, inFileAddr);
-		size -= PageSize;
-		addr += PageSize;
-		inFileAddr += PageSize;
-	}
-	//translate for blocks starting at the beginning of a page but allocating only a part of it.
-	if (size % PageSize) {
-		Translate(addr,&physAddr,size % PageSize);
-		DEBUG('z',"3.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr,size % PageSize);
-		executable->ReadAt(& (machine->mainMemory[physAddr]), size % PageSize, inFileAddr);
-	}		
 }
 
 
-//taken from translate.cc  (the same function from translate.cc could be used
-// but a problem came up when loading initial file with "StartProcess").
-// it is either this or setting the pagetable pointer for the machine Object inside AddrSpace constructor
-ExceptionType AddrSpace::Translate(int virtAddr, int * physAddr, int size) {
-	unsigned int vpn, offset;
-    TranslationEntry *entry;
-    unsigned int pageFrame;
-	
-	if(virtAddr < 0) {
-    	return AddressErrorException;
-    }
-	vpn = (unsigned) virtAddr / PageSize;
-  	offset = (unsigned) virtAddr % PageSize;
-	if (vpn >= numPages) {
-	    DEBUG('z', "virtual page # %d too large for page table size %d!\n", virtAddr, numPages);
-		return AddressErrorException;
-	}
-	else if (!pageTable[vpn].valid) {
-	    DEBUG('z', "virtual page # %d too large for page table size %d!\n", virtAddr, numPages);
-	    return PageFaultException;
-	}
-	entry = &pageTable[vpn];
-	pageFrame = entry->physicalPage;
-
-    // if the pageFrame is too big, there is something really wrong! 
-    // An invalid translation was loaded into the page table or TLB. 
-    if (pageFrame >= NumPhysPages) { 
-		DEBUG('z', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
-		return BusErrorException;
-    }
-    entry->use = TRUE;		// set the use bits
-    
-    *physAddr = pageFrame * PageSize + offset;
-    ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
-    DEBUG('z', "phys addr = 0x%x\n", *physAddr);
-    return NoException;
-}
-
-/*
 //--------------------------------------------------------------------------------------------------------------------------------------
 // BestFit
 //
@@ -252,18 +110,17 @@ ExceptionType AddrSpace::Translate(int virtAddr, int * physAddr, int size) {
 //
 //---------------------------------------------------------------------------------------------------------------------------------------
 //begin marcus and bradley
-int AddrSpace::BestFit () {
-	 int 	chunk = 0;	// the size of the available contiguous memory chunk
-	int  bestChunk = NumPhysPages;			
+void AddrSpace::BestFit (void) {
+	int 	chunk = 0;	// the size of the available contiguous memory chunk
+	int  bestChunk = 0;			
 	int 	index = 0;
-	int  bestStartingAddress =0;
 	int 	startingAddress = 0;
-	bool SpaceFound = FALSE;
+	SpaceFound = FALSE;
 	bool    EndOfMem = FALSE;
 	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	while (index < NumPhysPages && !SpaceFound)  // stay in loop until either a space is found or i've searched the entire memory
 	{
-		printf(" BestFit: index is equal to %d \n",index);
+		//printf(" BestFit: index is equal to %d \n",index);
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
 		// or else you index and keep looking
 		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
@@ -284,36 +141,36 @@ int AddrSpace::BestFit () {
 				EndOfMem = TRUE;
 				index = 0; // to prevent an ASSERT inside Bitmap Test Function
 			}
-		}
-		if (chunk >= numPages) // can the new program fit into the memory chunk
-		{		       // possibly more memory to check
-			if(chunk <= bestChunk)
-			{
-				bestChunk=chunk;
-				bestStartingAddress = startingAddress;
-				printf("I found a smaller chunk of memory starting at frame # %d \n",startingAddress);
-				SpaceFound = TRUE;
+			if (chunk >= numPages){
+				if(bestChunk == 0){
+					bestChunk = chunk;
+					StartHere = startingAddress;
+				}
+				else if(chunk < bestChunk){
+					bestChunk = chunk;
+					StartHere = startingAddress;
+				}
 			}
-			
-			
 		}
-		chunk = 0;
-		printf("I'm done finding this memory chunk\n");
-
+		if(bestChunk >= numPages && EndOfMem){
+			SpaceFound = TRUE;
+			printf("%u frames are found starting from Frame %u. \n",chunk,startingAddress);
+			return;
+		}
+		else {
+			chunk = 0;
+		}
 		index ++;
 	}
 
-	if (SpaceFound)
+	if (EndOfMem && bestChunk < numPages)
 	{
-		printf("I found the best chunk of memory starting at frame # %d \n",bestStartingAddress );
-		return (bestStartingAddress );
+		printf("Not enough contiguous memory for the process.\n");
 	}
-	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-		return(0);
-	}
+	return;
 }
+void AddrSpace::WorstFit () {}
+/*
 //---------------------------------------------------------------------------------------------------------------------------------------
 // WorstFit
 //
@@ -383,31 +240,75 @@ int AddrSpace::WorstFit () {
 
 // end Marcus and bradley
 */
-
-// Pick the desired memory allocation algorithm
-// Return the starting physical address of the available memory frame
-void AddrSpace::MemoryAllocation (void) {
-//end Marcus
-//	int StartAddr = 0;
-	int MemAlg;
-	if (MemAlgSelArgs == NULL) {
-		FirstFit();
-	} else if (CheckType(MemAlgSelArgs)==1) {
-		MemAlg = atoi (MemAlgSelArgs);
-		if (MemAlg == 1) {
-			FirstFit();
-		} else if (MemAlg == 2) {
-			BestFit();
-		} else if (MemAlg == 3) {
-			WorstFit();
-		} else
-			FirstFit();
-	} else 	FirstFit();
-
-//	return StartAddr;
+void AddrSpace::LoadSegment(OpenFile *executable, int addr, int size, int inFileAddr) {
+    
+	int physAddr, loops;
+	
+	//translate for block not starting at the beginning of a page
+	if (addr % PageSize) {
+		Translate(addr,&physAddr,size % PageSize);
+		DEBUG('z',"1.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr,size % PageSize);
+		executable->ReadAt(& (machine->mainMemory[physAddr]), size % PageSize, inFileAddr);
+		size -=  (size % PageSize);
+		addr += (size % PageSize);
+		inFileAddr += (size % PageSize);
+	}
+	loops = size/PageSize;
+	//translate for blocks starting at the beginning of a page and allocating the whole page
+	for (int i=0; i<loops ; i++){
+		Translate(addr,&physAddr,PageSize);
+		DEBUG('z',"2.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr, PageSize);
+		executable->ReadAt(& (machine->mainMemory[physAddr]), PageSize, inFileAddr);
+		size -= PageSize;
+		addr += PageSize;
+		inFileAddr += PageSize;
+	}
+	//translate for blocks starting at the beginning of a page but allocating only a part of it.
+	if (size % PageSize) {
+		Translate(addr,&physAddr,size % PageSize);
+		DEBUG('z',"3.Translation from Virtual Addr 0x%x to Physical Addr = 0x%x for block of size %d\n",addr, physAddr,size % PageSize);
+		executable->ReadAt(& (machine->mainMemory[physAddr]), size % PageSize, inFileAddr);
+	}		
 }
 
-// end Anderson
+//taken from translate.cc  (the same function from translate.cc could be used
+// but a problem came up when loading initial file with "StartProcess").
+// it is either this or setting the pagetable pointer for the machine Object inside AddrSpace constructor
+ExceptionType AddrSpace::Translate(int virtAddr, int * physAddr, int size) {
+	unsigned int vpn, offset;
+    TranslationEntry *entry;
+    unsigned int pageFrame;
+	
+	if(virtAddr < 0) {
+    	return AddressErrorException;
+    }
+	vpn = (unsigned) virtAddr / PageSize;
+  	offset = (unsigned) virtAddr % PageSize;
+	if (vpn >= numPages) {
+	    DEBUG('z', "virtual page # %d too large for page table size %d!\n", virtAddr, numPages);
+		return AddressErrorException;
+	}
+	else if (!pageTable[vpn].valid) {
+	    DEBUG('z', "virtual page # %d too large for page table size %d!\n", virtAddr, numPages);
+	    return PageFaultException;
+	}
+	entry = &pageTable[vpn];
+	pageFrame = entry->physicalPage;
+
+    // if the pageFrame is too big, there is something really wrong! 
+    // An invalid translation was loaded into the page table or TLB. 
+    if (pageFrame >= NumPhysPages) { 
+		DEBUG('z', "*** frame %d > %d!\n", pageFrame, NumPhysPages);
+		return BusErrorException;
+    }
+    entry->use = TRUE;		// set the use bits
+    
+    *physAddr = pageFrame * PageSize + offset;
+    ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
+    DEBUG('z', "phys addr = 0x%x\n", *physAddr);
+    return NoException;
+}
+
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the 
@@ -449,9 +350,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
     unsigned int i, size;
-
-	ExceptionType exception; 
-
+	
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -464,15 +363,16 @@ AddrSpace::AddrSpace(OpenFile *executable)
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
-
-    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-					numPages, size);
-
+	
+	printf("Need %u memory frames.\n",numPages);
+	printf("Memory usage Before allocation:");
+	
 	MainMemMap->Print();
-	MemoryAllocation();
+	MemoryAllocation(MemAll);
         
 	if (SpaceFound != false)  {
-	// first, set up the translation 
+		printf("Memory allocation for %u succeeds.\n", currentThread->GetId());
+		// first, set up the translation 
 		pageTable = new TranslationEntry[numPages];
 		for (i = 0; i < numPages; i++) {
 			pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
@@ -481,72 +381,34 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			pageTable[i].valid = TRUE;
 			pageTable[i].use = FALSE;
 			pageTable[i].dirty = FALSE;
-			pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
-							// a separate page, we could set its 
-							// pages to be read-only
+			pageTable[i].readOnly = FALSE;  // if the code segment was entirely a separate page, we could set its 
+											// pages to be read-only
 		}
 		
-	   printf("Here is the Bitmap after the program memory has been allocated: \n");
+	   printf("Memory usage After allocation:");
 	   MainMemMap->Print();
-	// zero out the entire address space, to zero the unitialized data segment 
-	// and the stack segment
-	   // bzero(machine->mainMemory, size);
-
+	   
+		// zero out the entire address space, to zero the unitialized data segment 
+		// and the stack segment
+		printf("Zero out the address space and stack.\n");
 		for (i = 0; i < numPages; i++) {
-			DEBUG('z', "Zeroing frame number %d starting at 0x%x\n", pageTable[i].physicalPage,
-						pageTable[i].physicalPage*PageSize);
 			bzero( &(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize);
 		}		
-			
-		//memset(machine->mainMemory+StartHere,0,size);  // Marcus
 		
+		printf("Copy the code and data into memory.\n");
 		// then, copy in the code and data segments into memory
 		if (noffH.code.size > 0) {
-			DEBUG('z', "Initializing code segment, at 0x%x, size %d\n", 
-				noffH.code.virtualAddr, noffH.code.size);
-			/*executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-				noffH.code.size, noffH.code.inFileAddr);*/
 			LoadSegment(executable,noffH.code.virtualAddr, noffH.code.size, noffH.code.inFileAddr);
 		}
 		if (noffH.initData.size > 0) {
-			DEBUG('z', "Initializing data segment, at 0x%x, size %d\n", 
-				noffH.initData.virtualAddr, noffH.initData.size);
-			/*executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-				noffH.initData.size, noffH.initData.inFileAddr);*/
 			LoadSegment(executable,noffH.initData.virtualAddr, noffH.initData.size, noffH.initData.inFileAddr);
 		}
-	
-	
-		
-		// begin Anderson
-		/*
-		exception = Translate(noffH.code.virtualAddr, &physicalAddress, size, FALSE);
-		if (exception != NoException) { // if translation fail, raise exception.
-			machine->RaiseException(exception, noffH.code.virtualAddr);
-		} 
-		else {
-			// if address translation success without exception, proceed.
-			printf("physical address is %u\n",physicalAddress);
-			if (noffH.code.size > 0) {
-				DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
-					noffH.code.virtualAddr, noffH.code.size);
-				executable->ReadAt(&(machine->mainMemory[physicalAddress]),
-					noffH.code.size, noffH.code.inFileAddr);
-				printf ("%u\n",&(machine->mainMemory[physicalAddress]));
-			}
-			if (noffH.initData.size > 0) {
-				DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
-					noffH.initData.virtualAddr, noffH.initData.size);
-				executable->ReadAt(&(machine->mainMemory[physicalAddress]),
-					noffH.initData.size, noffH.initData.inFileAddr);
-			}				
-		// end Anderson
-		}
-		
-		*/
+	} else {
+		// May need to consider this case
+		//printf("Not enough memory.\n");
+		printf("Memory allocation for process %u fails.\n",currentThread->GetId());
 	}
 }
-
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
 // 	Dealloate an address space.  Nothing for now!
@@ -554,28 +416,72 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
+	printf("%u\n",currentThread->GetId());
 	unsigned int i;
-	// deleting program from memory
+	
+	// delete memory space
 	for (i = 0; i < numPages; i++) 
-	{
-		DEBUG('z', "Zeroing frame number %d starting at 0x%x\n", pageTable[i].physicalPage,
-						pageTable[i].physicalPage*PageSize);
 		bzero( &(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize);
-	} 
-
-	printf("Here is the bitmap before the destructor clears it \n");
+	
+	printf("Memory usage Before deallocation: \n");
 	MainMemMap->Print();
-	// deleting bitmap
-        for (i = 0; i < numPages; i++) 
-        {
-		
+	
+	// reset bitmap
+    for (i = 0; i < numPages; i++){ 		
 	   MainMemMap->Clear(i+StartHere);
-		
 	}
-	printf("Here is the bitmap after the destructor clear it \n");
+	
+	printf("Memory usage After deallocation: \n");
 	MainMemMap->Print();
-   delete pageTable;
-  // Anderson: what about bit map? 
+	//printf("Memory space for process %u is deleted\n", PID);
+    delete pageTable;
+	CleanupExit();
+	printf("\n\n");
+	currentThread->Finish();
+
+	
+	
+}
+
+void AddrSpace::CleanupExit() {
+	int PID;
+	PID = currentThread->GetId();
+	
+	ProcessElement * ElementTemp = new ProcessElement;
+	// Clean up PCB entry
+	if (PCB->Return(PID) != NULL) {
+		ElementTemp = PCB->Return(PID);
+		PCB->Remove(ElementTemp);
+	}
+	// Free up memory frame.
+	// currentThread->space->freeFrames();
+	//printf("Process %u is trying to deallocate memory space.\n", PID);
+	//delete currentThread->space;
+	
+	// Find out and wake up the parent thread.
+	//printf("Memory space for process %u is deleted\n", PID);
+	int ParentPID = ElementTemp->ParentPID;
+	
+	
+	//delete ElementTemp;
+	
+	if (ParentPID != 0){		
+		PCB->Return(ParentPID)->ProcessSemahpore->V();
+		printf("Child process %u wakes up its parent process %u\n",PID,ParentPID);
+	} else 
+		printf("There is no parent process.\n");
+	
+	if (--NumProcess == 0)
+		printf("There is no process left.\n");
+/*	
+	if (--NumProcess > 0) 
+//		printf("There is still process left.\n");
+	else {
+		printf("There is no process left.\n");		
+		//interrupt->Halt();   //no other processes left 		
+	}
+	printf("There are %u process left.\n",NumProcess);
+	*/
 }
 
 //----------------------------------------------------------------------

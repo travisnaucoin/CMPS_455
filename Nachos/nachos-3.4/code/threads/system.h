@@ -35,7 +35,9 @@ extern Timer *timer;				// the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
+#include "bitmap.h" // Marcus
 extern Machine* machine;	// user program memory and registers
+extern BitMap *MainMemMap;
 #endif
 
 #ifdef FILESYS_NEEDED 		// FILESYS or FILESYS_STUB
@@ -59,9 +61,9 @@ extern char * MemAlgSelArgs;
 extern int CheckType (char *);
 extern int MemoryAllocation (void);
 extern int ProcessId;
-extern Semaphore * PIDMutex;
+//extern Semaphore * PIDMutex;
 extern int NumProcess;
-
+extern int MemAll;
 
 struct ProcessElement {
 	

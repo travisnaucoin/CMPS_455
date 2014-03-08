@@ -61,7 +61,7 @@ extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
 // begin Anderson
-char * MemAlgSelArgs = "";//extern int MemoryAllocation (void);// end Anderson
+char * MemAlgSelArgs = "";// end Anderson
 
 //----------------------------------------------------------------------
 // main
@@ -96,37 +96,41 @@ main(int argc, char **argv)
             printf (copyright);
 #ifdef USER_PROGRAM
 		
-        if (!strcmp(*argv, "-x")) {
-			// Select memory allocation algorithm
-			// begin Anderson 
-			if (!strcmp(*(argv + 2), "-M")) { 
-				MemAlgSelArgs = *(argv + 3);
-// begin Marcus
-//				printf ("debug return addr: %u \n",MemoryAllocation());
-			} else {
-				MemAlgSelArgs = NULL; // running default
-//				printf ("debug return addr: %u \n",MemoryAllocation());
-// end Marcus
-			}
-			// end Anderson	
-			
-		// run a user program
-	    ASSERT(argc > 1);
-            StartProcess(*(argv + 1));
-            argCount = 2;
-        } else if (!strcmp(*argv, "-c")) {      // test the console
-	    
-		
-		if (argc == 1)
-	        ConsoleTest(NULL, NULL);
-	    else {
-		ASSERT(argc > 2);
-	        ConsoleTest(*(argv + 1), *(argv + 2));
-	        argCount = 3;
-	    }
-		
+	// begin Anderson 
+	// Select memory allocation algorithm
+	if (*(argv+2) != NULL) {
+		if (!strcmp(*(argv+2), "-M")) 
+			// -M is used
+			// pass the value to select memory allocation algorithm
+			MemAlgSelArgs = *(argv + 3);
+	} else {
+		// no -M is used.
+		// running default
+		MemAlgSelArgs = NULL;
+		printf("-M flag is not used.\n");
+		printf("Will select default algorithm.\n");
+	}
 	
-			
+	// end Anderson
+		
+	if (!strcmp(*argv, "-x")) {
+		// run a user program
+		ASSERT(argc > 1);
+			StartProcess(*(argv + 1));
+			argCount = 2;
+		
+		
+	} else if (!strcmp(*argv, "-c")) {      // test the console
+
+	
+	if (argc == 1)
+		ConsoleTest(NULL, NULL);
+	else {
+	ASSERT(argc > 2);
+		ConsoleTest(*(argv + 1), *(argv + 2));
+		argCount = 3;
+	}
+				
 	    interrupt->Halt();		// once we start the console, then 
 					// Nachos will loop forever waiting 
 					// for console input

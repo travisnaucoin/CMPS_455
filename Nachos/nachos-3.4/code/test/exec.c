@@ -11,7 +11,7 @@ int main() {
 	int FileId3;
 	
 	FileId1 = Exec("../test/test1"); // PID=2
-	FileId2 = Exec("../test/test2"); // PID=3
+	FileId2 = Exec("../test/matmult"); // PID=3
 
 	Join(FileId1);
 	FileId3 = Exec("../test/test3"); // PID=4
@@ -19,20 +19,20 @@ int main() {
 	Join(FileId2);	// Proc 2 is done;
 	Join(FileId3);
 	
+
 	
-	
-	
+//	int i = 1;
 /*
 	while (j < 10)
 	{
 	   i++;
 	   FileId2 = Exec("../test/test1");
-	   Join(FileId1);
+	   Join(FileId2);
 	}
 */	
 	//FileId2 = Exec("../test/halt");
 	//Join(FileId2);
-	Halt();
+//	Halt();
 	//Halt();
 	return;
 }

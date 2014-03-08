@@ -1,14 +1,15 @@
 
 
 int main() {
+
+
 	int i = 0;
 	int j = 0;
 
-//	while (i<10) i++;
+   for (i=0;i<5;i++)
+	{
+		j++;
+	}
 
-	j = 66;
-
-	i = i + j;
-	
-//	Exit(1);
+	Exit(1);
 }

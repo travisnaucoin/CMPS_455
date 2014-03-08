@@ -1,15 +1,17 @@
 
+#include "syscall.h"
 
 int main() {
 	
 	int i = 0;
 	int j = 0;
-
-//	while (i<10) i++;
+	char * Msg ="HAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHAHHAAHAHAHHHAH";
 	
-	j = 66;
+   for (i=0;i<50;i++)
+	{
+		j++;
+	}
 
-	i = i + j;
 	Yield();
 //	Exit(1);
 }

@@ -20,31 +20,74 @@
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
 //----------------------------------------------------------------------
-int NumProcess = 0;
-// extern ProcessList * PCB;
+int NumProcess;
 ProcessList * PCB;
+BitMap *MainMemMap;
+int MemAll = 0;	// Glb variable for selecting memory allocation algorithm.
+extern char * MemAlgSelArgs;
+extern int CheckType (char *);
+
+int MemAlloAlgSelect (void) {
+	int MemAlg;
+	int Select = 0;
+	
+	if (MemAlgSelArgs == NULL) {
+		Select = 0;
+		printf("First-fit algorithm is selected for memory allocation.\n");
+	} else if (CheckType(MemAlgSelArgs)==1) {
+		MemAlg = atoi (MemAlgSelArgs);
+		if (MemAlg == 1) {
+			Select = 0;
+			printf("First-fit algorithm is selected for memory allocation.\n");
+		} else if (MemAlg == 2) {
+			Select = 1;
+			printf("Best-fit algorithm is selected for memory allocation.\n");
+		} else if (MemAlg == 3) {
+			Select = 2;
+			printf("Worst-fit algorithm is selected for memory allocation.\n");
+		} else {
+			Select = 0;
+			printf("Wrong value for -M option.\n");
+			printf("Will select default first-fit algorithm.\n");
+		}
+	} else 	{
+		Select = 0;
+		printf("Wrong type for value of -M option.\n");
+		printf("Will select default first-fit algorithm.\n");
+	}
+	return Select;
+}
 
 void
 StartProcess(char *filename)
-{
+{	
+	MemAll = MemAlloAlgSelect();
+	
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
     if (executable == NULL) {
 		printf("Unable to open file %s\n", filename);
-	return;
+		return;
     }
-    space = new AddrSpace(executable);    
-    currentThread->space = space; // Anderson: where the currentThread is created?
+	
 	currentThread->CreatId();
 	int PID = currentThread->GetId();
+	printf("Process %u is created. \n",PID);
 	
+	MainMemMap = new BitMap(NumPhysPages);
+	
+    space = new AddrSpace(executable);    
+    currentThread->space = space; 
+		
 	// Create and Update PCB;
+	NumProcess = 0;
 	PCB = new ProcessList ();
-
+	printf("PCB is created.\n");
+	
 	ProcessElement * ProcessTemp = new ProcessElement;
 	ProcessTemp->ParentPID = 0;
 	ProcessTemp->PID = PID;
-	printf("PID %u is assigned\n",ProcessTemp->PID);
+	//printf("PID %u is assigned\n",ProcessTemp->PID);
 	ProcessTemp->CurrentThread = currentThread;
 	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 	ProcessTemp->Next = ProcessTemp;
@@ -52,7 +95,7 @@ StartProcess(char *filename)
 	PCB->Append(ProcessTemp);
 	
 	++NumProcess;
-	printf("Process %u PID is created \n",PID);
+	
     delete executable;			// close file
 
     space->InitRegisters();		// set the initial register values

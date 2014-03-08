@@ -68,6 +68,7 @@ static void SWrite(char *buffer, int size, int id);
 
 // begin Anderson
 
+extern int NumProcess;
 
 ProcessList::ProcessList () {
 	Head = new ProcessElement;
@@ -117,13 +118,25 @@ void ProcessList::Remove(ProcessElement * Current) {
 	return;
 
 	// Update Head and Tail ptr
-	if (Current == Head) {
+	//the last node in doubly linked list are both the head and tail, not either or.
+	if (Current == Head && Current == Tail){
+		Head = NULL;
+		Tail = NULL;
+	}
+	else if (Current == Head) {
+		
 		Head = Current->Next;
 		Current->Next->Previous = NULL;
-	} else if (Current == Tail) {
+	} 
+	else if (Current == Tail) {
+		
 		Tail = Current->Previous;
+		
 		Current->Previous->Next = NULL;
-	} else {
+		
+	} 
+	else {
+		
 		Current->Previous->Next = Current->Next;
 		Current->Next->Previous = Current->Previous;
 	}
@@ -131,15 +144,19 @@ void ProcessList::Remove(ProcessElement * Current) {
 }
 
 ProcessElement * ProcessList::Return(int PID) {
-	if (IsEmpty()) 
+	if (IsEmpty()){ 
+	
 	return NULL;
+	}
 	
 	ProcessElement * node = new ProcessElement;
 	node = Head;
 	
 	do {
-		if (node->PID == PID) 
+		if (node->PID == PID){ 
+			
 			return node;
+			}
 		else
 			//printf("Current PID is %u\n",node->PID);
 			node = node->Next;
@@ -150,15 +167,18 @@ ProcessElement * ProcessList::Return(int PID) {
 	// printf("Search for process %u in PCB.\n", PID);
 	
 	// check the tail node
-	if (node->PID != PID)
+	if (node->PID != PID){
 		return NULL;
-	else
-		return node;	
+		}
+	else{
+		return node;
+}		
 		
 	delete node;
+	
 }
 
- 
+/* 
 void CleanupExit() {
 	int PID;
 	PID = currentThread->GetId();
@@ -171,10 +191,8 @@ void CleanupExit() {
 	
 	// Free up memory frame.
 	// currentThread->space->freeFrames();
+	printf("Process %u is trying to deallocate memory space.\n", PID);
 	delete currentThread->space;
-	// DEBUG('x', "Finished cleaning up allocated frames for process %s\n", currentThread->getName());
-	
-	//DEBUG('z', "Just before unblocking, Semaphore (0x%x)\n", currentThread->space->getPCB()->parentBlockSem);
 	
 	// Find out and wake up the parent thread.
 	printf("Memory space for process %u is deleted\n", PID);
@@ -183,16 +201,18 @@ void CleanupExit() {
 	if (ParentPID != 0){		
 		PCB->Return(ParentPID)->ProcessSemahpore->V();
 		printf("Wake up\n");
-	}
-	printf("sfsfsdfsdf\n");
+	} else 
+		printf("There is no parent process.\n");
 	
-//	procTable->removeProcess(pid);
-	if (--NumProcess > 0)   
-		currentThread->Finish();
-	else
-		interrupt->Halt();   //no other processes left 
+	if (--NumProcess > 0) 
+		printf("There is still process left.\n");
+	else {
+		printf("There is no process left.\n");		
+		interrupt->Halt();   //no other processes left 		
+	}
+	printf("There are %u process left.\n",NumProcess);
 }
-
+*/
 void processCreator (int PID) {
 	printf ("Process %u will yield. \n", PID);
 	currentThread->Yield();
@@ -241,6 +261,12 @@ ExceptionHandler(ExceptionType which)
 					char * filename = new char [128];
 					int ValTemp;
 					
+					Thread * t = new Thread("SyscallThread");
+					t->CreatId();
+					int PID = t->GetId();
+					printf("PID %u is created!\n", PID);
+					printf("Process %u calls exec() system call.\n",currentThread->GetId());
+					
 					if(!machine->ReadMem(AddrFile,1,&ValTemp)) {
 						printf("VA to PA translation fails when open file \n");
 						return;
@@ -260,26 +286,23 @@ ExceptionHandler(ExceptionType which)
 					filename[i]=(char)0;
 				
 					OpenFile *executable = fileSystem->Open(filename);
-					/*
+					
 					if (executable == NULL) {
-						printf("Error, unable to open file: [%s]\n", filename);   ///ABORT program?
-						CleanupExit();
+						printf("Error, process %u is unable to open file: [%s]\n",currentThread->GetId(), filename);
 						return;
-					}*/
+					}
 					
 					printf ("Read file:\"%s\"\n",filename);
 					delete filename;
 					
+
 					AddrSpace *space;
 					space = new AddrSpace(executable);
-					
+					delete executable;	
 					if (space->SpaceFound == true) {
 						printf("Memory Allocation Succeeds \n");
-						Thread * t = new Thread("SyscallThread");
+						
 						t->space = space;
-						t->CreatId();
-						int PID = t->GetId();
-						printf("PID %u is assigned!\n", PID);
 						
 						// begin: Protential Problem 
 						// Update PCB
@@ -287,9 +310,9 @@ ExceptionHandler(ExceptionType which)
 						
 						ProcessElement * ProcessTemp = new ProcessElement;
 						ProcessTemp->ParentPID = currentThread->GetId();
-						printf("ParentPID %u is store in PCB as %u\n",currentThread->GetId(),ProcessTemp->ParentPID);
+						//printf("ParentPID %u is store in PCB as %u\n",currentThread->GetId(),ProcessTemp->ParentPID);
 						ProcessTemp->PID = PID;
-						printf("PID %u is store in PCB as %u\n",PID,ProcessTemp->PID);
+						//printf("PID %u is store in PCB as %u\n",PID,ProcessTemp->PID);
 						ProcessTemp->CurrentThread = t;
 						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 						ProcessTemp->Next = ProcessTemp;
@@ -298,20 +321,26 @@ ExceptionHandler(ExceptionType which)
 						
 						machine->WriteRegister(2, PID);
 						++NumProcess;
-						t -> Fork(processCreator,PID); 
-						printf("End SC_Exec, %u\n", PID);
+						t -> Fork(processCreator,PID);
+						AdvancePC();
+											
+						//printf("End SC_Exec, %u\n", PID);
 						// end: Protential Problem
-					} else 
+					} else {				
+						
 						machine->WriteRegister(2, 0); // return 0 indicating no process is created.
-					AdvancePC();
-					delete executable;
+						AdvancePC();
+						return;
+					}
+					
 					break;
 				// End Anderson
 				}
 				
 				case SC_Join :
 				{ 	
-					printf("SC_Join is called \n");
+					printf("Process %u call join() system call.\n",currentThread->GetId());
+					
 					int ChildPID, ParentPID;
 					ChildPID = machine->ReadRegister(4); // 1st parameter
 					if (ChildPID != 0) {
@@ -326,21 +355,25 @@ ExceptionHandler(ExceptionType which)
 							machine->WriteRegister(2, -1);	// Child already exits.
 						}
 						AdvancePC();
-					} else
+					} else {
+						printf("\n");
 						machine->WriteRegister(2, -2);	// There is no child process.
+						AdvancePC();
+						return;
+					}
 					break;
 				}
 				
 				case SC_Exit : 
 				{
-					CleanupExit();
-					// AdvancePC();
-					//printf("YAYAYAYAYAY\n");
+					printf("Process %u call exit() to deallocate memory space.\n", currentThread->GetId());
+					delete currentThread->space;
 					break;
 				}
 				
 				case SC_Yield : 
 				{
+					printf("Process %u call yield() system call.\n",currentThread->GetId());
 					currentThread->Yield();
 					AdvancePC();
 					break;
