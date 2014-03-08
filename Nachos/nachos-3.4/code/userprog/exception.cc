@@ -90,7 +90,7 @@ bool ProcessList::IsEmpty() {
 void ProcessList::Append(ProcessElement * Current) {
 	ProcessElement * Old = new ProcessElement;
 	if (IsEmpty()) {
-		printf("Empty!!!!\n");
+		printf("PCB is Empty!\n");
 		printf ("Trying to add process %u in PCB\n",Current->PID);
 		Head = Current;
 		//printf("Head PID is %d\n",(*Head).PID);
@@ -231,8 +231,6 @@ void AdvancePC() {
 	machine->registers[NextPCReg] = machine->registers[NextPCReg] + 4;
 }
 
-// end Anderson
-
 
 void
 ExceptionHandler(ExceptionType which)
@@ -299,7 +297,7 @@ ExceptionHandler(ExceptionType which)
 					AddrSpace *space;
 					space = new AddrSpace(executable);
 					delete executable;	
-					if (space->SpaceFound == true) {
+					
 						printf("Memory Allocation Succeeds \n");
 						
 						t->space = space;
@@ -317,21 +315,19 @@ ExceptionHandler(ExceptionType which)
 						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 						ProcessTemp->Next = ProcessTemp;
 						ProcessTemp->Previous = ProcessTemp;
+						if (space->SpaceFound == true) {
+							ProcessTemp->Valid = true;	
+						} else {
+							ProcessTemp->Valid = false;
+						}
 						PCB->Append(ProcessTemp);
-						
 						machine->WriteRegister(2, PID);
 						++NumProcess;
-						t -> Fork(processCreator,PID);
+						if (space->SpaceFound == true) 
+							t -> Fork(processCreator,PID);
 						AdvancePC();
-											
-						//printf("End SC_Exec, %u\n", PID);
-						// end: Protential Problem
-					} else {				
-						
-						machine->WriteRegister(2, 0); // return 0 indicating no process is created.
-						AdvancePC();
-						return;
-					}
+						printf("Process %u finishes exec() system call.\n",PID);					
+				
 					
 					break;
 				// End Anderson
@@ -343,24 +339,22 @@ ExceptionHandler(ExceptionType which)
 					
 					int ChildPID, ParentPID;
 					ChildPID = machine->ReadRegister(4); // 1st parameter
-					if (ChildPID != 0) {
 						printf("Prepare to Join ChildProcess %u\n",ChildPID);
 						if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
-							
-							ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
-							printf("Will put parent process %u to sleep\n", ParentPID);
-							PCB->Return(ParentPID)->ProcessSemahpore->P();
-							machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
+							if (PCB->Return(ChildPID)->Valid != false) {
+								ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
+								printf("Will put parent process %u to sleep\n", ParentPID);
+								PCB->Return(ParentPID)->ProcessSemahpore->P();
+								machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
+							} else {
+								printf("Process %u fails to join process %u because lacking of memomry.\n",currentThread->GetId(),ChildPID);
+							}
 						} else {
 							machine->WriteRegister(2, -1);	// Child already exits.
+							AdvancePC();
 						}
 						AdvancePC();
-					} else {
-						printf("\n");
-						machine->WriteRegister(2, -2);	// There is no child process.
-						AdvancePC();
-						return;
-					}
+				
 					break;
 				}
 				
@@ -482,6 +476,9 @@ ExceptionHandler(ExceptionType which)
 	
 	delete [] ch;
 }
+
+// end Anderson
+
 
 
 static int SRead(int addr, int size, int id)  //input 0  output 1

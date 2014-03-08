@@ -105,14 +105,11 @@ void AddrSpace::FirstFit ()
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 // BestFit
-//
-//
-//
 //---------------------------------------------------------------------------------------------------------------------------------------
 //begin marcus and bradley
 void AddrSpace::BestFit (void) {
-	int 	chunk = 0;	// the size of the available contiguous memory chunk
-	int  bestChunk = 0;			
+	unsigned int 	chunk = 0;	// the size of the available contiguous memory chunk
+	unsigned int  bestChunk = 0;			
 	int 	index = 0;
 	int 	startingAddress = 0;
 	SpaceFound = FALSE;
@@ -169,26 +166,17 @@ void AddrSpace::BestFit (void) {
 	}
 	return;
 }
-void AddrSpace::WorstFit () {}
-/*
-//---------------------------------------------------------------------------------------------------------------------------------------
-// WorstFit
-//
-//
-//
-//---------------------------------------------------------------------------------------------------------------------------------------
-int AddrSpace::WorstFit () {
-	int 	chunk = 0;	// the size of the available contiguous memory chunk
-	int  worstChunk = 0;			
+void AddrSpace::WorstFit () {
+	unsigned int 	chunk = 0;	// the size of the available contiguous memory chunk
+	unsigned int  worstChunk = 0;			
 	int 	index = 0;
-	int  worstStartingAddress =0;
 	int 	startingAddress = 0;
-	bool SpaceFound = FALSE;
+	SpaceFound = FALSE;
 	bool    EndOfMem = FALSE;
 	
-	while (index < NumPhysPages)  // stay in loop until either a space is found or i've searched the entire memory
+	while (index < NumPhysPages && !SpaceFound)  // stay in loop until either a space is found or i've searched the entire memory
 	{
-		printf(" worstFit: index is equal to %d \n",index);
+		//printf(" BestFit: index is equal to %d \n",index);
 		// if MainMemMap->Test(index) == 0 then start consecutive pages
 		// or else you index and keep looking
 		while (!MainMemMap->Test(index)&& !EndOfMem)	// go into and stay in this loop while indexed page is empty
@@ -209,37 +197,35 @@ int AddrSpace::WorstFit () {
 				EndOfMem = TRUE;
 				index = 0; // to prevent an ASSERT inside Bitmap Test Function
 			}
-		}
-		if (chunk >= numPages) // can the new program fit into the memory chunk
-		{		       // possibly more memory to check
-			if(chunk > worstChunk)
-			{
-				worstChunk=chunk;
-				worstStartingAddress = startingAddress;
-				SpaceFound = TRUE;
+			if (chunk >= numPages){
+				if(worstChunk == 0){
+					worstChunk = chunk;
+					StartHere = startingAddress;
+				}
+				else if(chunk > worstChunk){
+					worstChunk = chunk;
+					StartHere = startingAddress;
+				}
 			}
-			printf("I found a bigger chunk of memory starting at frame # %d \n",startingAddress);
 		}
-		chunk = 0;
-		printf("I'm done finding this memory chunk\n");
-
+		if(worstChunk >= numPages && EndOfMem){
+			SpaceFound = TRUE;
+			printf("%u frames are found starting from Frame %u. \n",chunk,startingAddress);
+			return;
+		}
+		else {
+			chunk = 0;
+		}
 		index ++;
 	}
 
-	if (SpaceFound)
+	if (EndOfMem && worstChunk < numPages)
 	{
-		printf("I found the worst chunk of memory starting at frame # %d \n",worstStartingAddress );
-		return (worstStartingAddress );
+		printf("Not enough contiguous memory for the process.\n");
 	}
-	else
-	{
-		printf("There was not enough contiguous memory available for the new program\n");
-		return(0);
-	}
+	return;
 }
 
-// end Marcus and bradley
-*/
 void AddrSpace::LoadSegment(OpenFile *executable, int addr, int size, int inFileAddr) {
     
 	int physAddr, loops;
@@ -416,7 +402,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
-	printf("%u\n",currentThread->GetId());
 	unsigned int i;
 	
 	// delete memory space
@@ -436,11 +421,8 @@ AddrSpace::~AddrSpace()
 	//printf("Memory space for process %u is deleted\n", PID);
     delete pageTable;
 	CleanupExit();
-	printf("\n\n");
-	currentThread->Finish();
-
-	
-	
+	printf("Process %u exits.\n", currentThread->GetId());
+	currentThread->Finish();	
 }
 
 void AddrSpace::CleanupExit() {

@@ -72,6 +72,7 @@ struct ProcessElement {
 		
 		Thread * CurrentThread;
 		int PID;
+		bool Valid;
 		int ParentPID;
 		Semaphore * ProcessSemahpore;
 };

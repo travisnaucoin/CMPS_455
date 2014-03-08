@@ -91,7 +91,8 @@ StartProcess(char *filename)
 	ProcessTemp->CurrentThread = currentThread;
 	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 	ProcessTemp->Next = ProcessTemp;
-	ProcessTemp->Previous = ProcessTemp;	
+	ProcessTemp->Previous = ProcessTemp;
+	ProcessTemp->Valid = true;	
 	PCB->Append(ProcessTemp);
 	
 	++NumProcess;
