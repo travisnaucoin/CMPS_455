@@ -297,11 +297,11 @@ ExceptionHandler(ExceptionType which)
 					AddrSpace *space;
 					space = new AddrSpace(executable);
 					delete executable;	
-					
+
 					t->space = space;
 					
 					// Update PCB
-					
+		
 					ProcessElement * ProcessTemp = new ProcessElement;
 					ProcessTemp->ParentPID = currentThread->GetId();
 					ProcessTemp->PID = PID;
@@ -309,6 +309,8 @@ ExceptionHandler(ExceptionType which)
 					ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 					ProcessTemp->Next = ProcessTemp;
 					ProcessTemp->Previous = ProcessTemp;
+					if (space->SpaceFound == true) {
+						printf("Memory Allocation Succeeds. \n");
 						ProcessTemp->Valid = true;						
 						MutexNumProc -> P();
 						++NumProcess;
@@ -320,10 +322,10 @@ ExceptionHandler(ExceptionType which)
 					printf("This is the %uth Process.\n",NumProcess);
 					PCB->Append(ProcessTemp);
 					machine->WriteRegister(2, PID);
-					
+						
 					AdvancePC();
 
-					printf("Process %u finishes exec() system call.\n",PID);					
+					printf("Process %u finishes exec() system call.\n",PID);								
 				
 					break;
 				// End Anderson

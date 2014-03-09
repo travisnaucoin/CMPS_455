@@ -88,7 +88,6 @@ StartProcess(char *filename)
 	ProcessElement * ProcessTemp = new ProcessElement;
 	ProcessTemp->ParentPID = 0;
 	ProcessTemp->PID = PID;
-	//printf("PID %u is assigned\n",ProcessTemp->PID);
 	ProcessTemp->CurrentThread = currentThread;
 	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
 	ProcessTemp->Next = ProcessTemp;
@@ -98,7 +97,7 @@ StartProcess(char *filename)
 	MutexNumProc = new Semaphore("MutexNumProc", 1);
 	MutexNumProc -> P();
 	++NumProcess;
-	printf("?????????????????????????????????????????????This is the %uth Process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",NumProcess);
+	printf("This is the %uth Process.\n",NumProcess);
     MutexNumProc -> V();
 	delete executable;			// close file
 
