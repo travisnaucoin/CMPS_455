@@ -390,11 +390,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
 		if (noffH.initData.size > 0) {
 			LoadSegment(executable,noffH.initData.virtualAddr, noffH.initData.size, noffH.initData.inFileAddr);
 		}
-	} else {
-		// May need to consider this case
-		//printf("Not enough memory.\n");
-		printf("Memory allocation for process %u fails.\n",currentThread->GetId());
-		
 	}
 }
 //----------------------------------------------------------------------

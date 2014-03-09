@@ -217,6 +217,7 @@ void CleanupExit() {
 void processCreator (int PID) {
 	printf ("Process %u will yield. \n", PID);
 	currentThread->Yield();
+	printf ("Process %u return from yield and start execution.\n",PID);
 	currentThread->space->InitRegisters();
 	currentThread->space->RestoreState(); // load page table register
 						
@@ -257,39 +258,60 @@ ExceptionHandler(ExceptionType which)
 				case SC_Exec : 
 				{	
 					int AddrFile = machine -> ReadRegister(4);
-					char * filename = new char [128];
+					int NumBuff = 128;
+					char * filename = new char [NumBuff];
 					int ValTemp;
 					
 					Thread * t = new Thread("SyscallThread");
 					t->CreatId();
 					int PID = t->GetId();
-					printf("PID %u is created!\n", PID);
+					printf("Process %u is loading. \n",PID);
 					printf("Process %u calls exec() system call.\n",currentThread->GetId());
 					
 					if(!machine->ReadMem(AddrFile,1,&ValTemp)) {
 						printf("VA to PA translation fails when open file \n");
+						AdvancePC();
+						machine->WriteRegister(2, PID);
+						printf("Process %u finishes exec() system call and return its PID.\n",PID);
 						return;
 					}
 
-					i=0;
+					i=0;	
 					
-					while( ValTemp != 0 )
+					while( ValTemp != 0)
 					{
-						filename[i]=(char)ValTemp;
-						//printf("%uth letter is %s \n",i,filename[i]);
-						//*ValTemp+=1;
-						i++;
-						AddrFile+=1;
-						if(!machine->ReadMem(AddrFile,1,&ValTemp))return;
+						if (i <= NumBuff) {
+							filename[i]=(char)ValTemp;
+							i++;
+							AddrFile+=1;
+							if(!machine->ReadMem(AddrFile,1,&ValTemp)){
+								printf("Error: out of bound when reading the file name.\n");
+								AdvancePC();
+								machine->WriteRegister(2, PID);
+								printf("Process %u finishes exec() system call and return its PID.\n",PID);
+								return;
+							} 	
+						} else {
+							printf("Error: Not enough buffer for the file name.\n");
+							printf("Error: Current process will be terminated.\nNachos will continue.\n");
+							AdvancePC();
+							machine->WriteRegister(2, PID);
+							printf("Process %u finishes exec() system call and return its PID.\n",PID);
+							return;
+						}
+					
 					}
 					filename[i]=(char)0;
 				
 					OpenFile *executable = fileSystem->Open(filename);
 					
 					if (executable == NULL) {
-						printf("Error, process %u is unable to open file: [%s]\n",currentThread->GetId(), filename);
+						printf("Error, Invalid directory or file name.\nProcess %u is unable to open file: [%s]\n",currentThread->GetId(), filename);
+						AdvancePC();
+						printf("Process %u finishes exec() system call and return its PID.\n",PID);
 						return;
-					}
+					} else 
+						printf("File %s has been found.\n",filename);
 					
 					printf ("Read file:\"%s\"\n",filename);
 					delete filename;
@@ -310,13 +332,14 @@ ExceptionHandler(ExceptionType which)
 					ProcessTemp->Next = ProcessTemp;
 					ProcessTemp->Previous = ProcessTemp;
 					if (space->SpaceFound == true) {
-						printf("Memory Allocation Succeeds. \n");
+						printf("Memory Allocation for Process %u Succeeds. \n",PID);
 						ProcessTemp->Valid = true;						
 						MutexNumProc -> P();
 						++NumProcess;
 						MutexNumProc -> V();
 						t -> Fork(processCreator,PID);
 					} else {
+						printf("\nMemory Allocation for Process %u Fails. \n\n",PID);
 						ProcessTemp->Valid = false;
 					}
 					printf("This is the %uth Process.\n",NumProcess);
@@ -325,7 +348,7 @@ ExceptionHandler(ExceptionType which)
 						
 					AdvancePC();
 
-					printf("Process %u finishes exec() system call.\n",PID);								
+					printf("Process %u finishes exec() system call and return its PID.\n",PID);								
 				
 					break;
 				// End Anderson
@@ -337,7 +360,28 @@ ExceptionHandler(ExceptionType which)
 					
 					int ChildPID, ParentPID;
 					ChildPID = machine->ReadRegister(4); // 1st parameter
-						printf("Prepare to Join ChildProcess %u\n",ChildPID);
+					printf("Prepare to Join ChildProcess %u\n",ChildPID);
+						
+		
+					
+					if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
+						if (PCB->Return(ChildPID)->Valid != false) {
+							ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
+							printf("Will put parent process %u to sleep\n", ParentPID);
+							PCB->Return(ParentPID)->ProcessSemahpore->P();
+							machine->WriteRegister(2, 0);   // 0 denotes that the process waited on it's child
+						} else {
+							printf("Process %u fails to join process %u because lacking of memomry.\n",currentThread->GetId(),ChildPID);
+						}
+					} else {
+						printf("Process %u doesn't exist or Invalid type.\n",ChildPID);
+						machine->WriteRegister(2, -1);	// Child already exits.
+						AdvancePC();
+						return;
+					}
+				
+					
+						/*
 						if (PCB->Return(ChildPID) != NULL) { //process to wait for has not finished yet
 							if (PCB->Return(ChildPID)->Valid != false) {
 								ParentPID = (*(PCB->Return(ChildPID))).ParentPID;
@@ -348,18 +392,31 @@ ExceptionHandler(ExceptionType which)
 								printf("Process %u fails to join process %u because lacking of memomry.\n",currentThread->GetId(),ChildPID);
 							}
 						} else {
+							printf("Process %u doesn't exist.\n",ChildPID);
 							machine->WriteRegister(2, -1);	// Child already exits.
 							AdvancePC();
+							return;
 						}
-						AdvancePC();
-				
+						*/
+						AdvancePC();			
 					break;
 				}
 				
 				case SC_Exit : 
 				{
-					printf("Process %u call exit() to deallocate memory space.\n", currentThread->GetId());
-					delete currentThread->space;
+					
+					//else if (ExitStatus == 1)
+					//	printf("Process exit with status value equal to %u \n",ExitStatus);
+					//else
+					//	printf("Process exit with status value equal to %u \n");
+						
+					printf("Process %u call exit() system call.\n", currentThread->GetId());
+						
+					int ExitStatus = machine->ReadRegister(4);
+					printf("Process %u exit with the returning value equal to %u \n",currentThread->GetId(),ExitStatus);
+					
+					AdvancePC();
+					delete currentThread->space;					
 					break;
 				}
 				
@@ -416,7 +473,12 @@ ExceptionHandler(ExceptionType which)
 				}
 				
 				default :
-				//Unprogrammed system calls end up here
+					//Unprogrammed system calls end up here
+					{	
+					printf("\n!!!!!!!!Unprogrammed system call. !!!!!!!!!!!!!!!!!\n\n");
+					AdvancePC();
+					return;
+					}
 				break;
 	 
 				//AdvancePC();

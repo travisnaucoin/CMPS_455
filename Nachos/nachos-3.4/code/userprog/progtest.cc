@@ -73,41 +73,49 @@ StartProcess(char *filename)
 	
 	currentThread->CreatId();
 	int PID = currentThread->GetId();
-	printf("Process %u is created. \n",PID);
+	printf("Process %u is loading. \n",PID);
 	
 	MainMemMap = new BitMap(NumPhysPages);
 	
     space = new AddrSpace(executable);    
     currentThread->space = space; 
-		
-	// Create and Update PCB;
-	NumProcess = 0;
-	PCB = new ProcessList ();
-	printf("PCB is created.\n");
-	
-	ProcessElement * ProcessTemp = new ProcessElement;
-	ProcessTemp->ParentPID = 0;
-	ProcessTemp->PID = PID;
-	ProcessTemp->CurrentThread = currentThread;
-	ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
-	ProcessTemp->Next = ProcessTemp;
-	ProcessTemp->Previous = ProcessTemp;
-	ProcessTemp->Valid = true;	
-	PCB->Append(ProcessTemp);
-	MutexNumProc = new Semaphore("MutexNumProc", 1);
-	MutexNumProc -> P();
-	++NumProcess;
-	printf("This is the %uth Process.\n",NumProcess);
-    MutexNumProc -> V();
 	delete executable;			// close file
-
-    space->InitRegisters();		// set the initial register values
-    space->RestoreState();		// load page table register
-
-    machine->Run();			// jump to the user progam
-    ASSERT(FALSE);			// machine->Run never returns;
-					// the address space exits
-					// by doing the syscall "exit"
+		
+	if (space->SpaceFound == true) {
+	
+		// Create and Update PCB;
+		NumProcess = 0;
+		PCB = new ProcessList ();
+		printf("PCB is created.\n");
+		
+		ProcessElement * ProcessTemp = new ProcessElement;
+		ProcessTemp->ParentPID = 0;
+		ProcessTemp->PID = PID;
+		ProcessTemp->CurrentThread = currentThread;
+		ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
+		ProcessTemp->Next = ProcessTemp;
+		ProcessTemp->Previous = ProcessTemp;
+		
+		ProcessTemp->Valid = true;	
+		PCB->Append(ProcessTemp);
+		MutexNumProc = new Semaphore("MutexNumProc", 1);
+		MutexNumProc -> P();
+		++NumProcess;
+		printf("This is the %uth Process.\n",NumProcess);
+		MutexNumProc -> V();
+		
+		space->InitRegisters();		// set the initial register values
+		space->RestoreState();		// load page table register
+		
+		machine->Run();			// jump to the user progam
+		ASSERT(FALSE);			// machine->Run never returns;
+						// the address space exits
+						// by doing the syscall "exit"
+	} else {
+		printf("\nNot enough memory for the first program.\n\n");
+		currentThread->Finish();
+	}
+	
 }
 
 // Data structures needed for the console test.  Threads making

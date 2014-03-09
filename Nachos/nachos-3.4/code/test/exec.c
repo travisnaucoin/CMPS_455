@@ -12,13 +12,14 @@ int main() {
 	
 	FileId1 = Exec("../test/test1"); // PID=2
 	FileId2 = Exec("../test/matmult"); // PID=3
-
+	Fork(0);
 	Join(FileId1);
 	FileId3 = Exec("../test/test3"); // PID=4
 	
 	Join(FileId2);	// Proc 2 is done;
 	Join(FileId3);
 	
+	Exit(0);
 
 	
 //	int i = 1;

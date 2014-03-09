@@ -32,7 +32,8 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
 	// begin Anderson
-    void FirstFit();    void BestFit ();	
+    void FirstFit();
+    void BestFit ();	
     void WorstFit ();
     void MemoryAllocation (int);
 	void CleanupExit(void);

@@ -11,5 +11,5 @@ int main() {
 		j++;
 	}
 
-	Exit(1);
+	Exit(0);
 }
