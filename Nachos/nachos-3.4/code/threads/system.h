@@ -61,7 +61,7 @@ extern char * MemAlgSelArgs;
 extern int CheckType (char *);
 extern int MemoryAllocation (void);
 extern int ProcessId;
-//extern Semaphore * PIDMutex;
+extern Semaphore * MutexNumProc;
 extern int NumProcess;
 extern int MemAll;
 
@@ -95,6 +95,3 @@ class ProcessList {
 extern ProcessList * PCB;
 
 #endif // SYSTEM_H
-
-
-

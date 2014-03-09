@@ -79,6 +79,7 @@ ProcessList::ProcessList () {
 
 //ProcessList * PCB = new ProcessList ();
 extern ProcessList * PCB;
+extern Semaphore * MutexNumProc;
 
 bool ProcessList::IsEmpty() {
 	if (Head == NULL)
@@ -293,42 +294,37 @@ ExceptionHandler(ExceptionType which)
 					printf ("Read file:\"%s\"\n",filename);
 					delete filename;
 					
-
 					AddrSpace *space;
 					space = new AddrSpace(executable);
 					delete executable;	
 					
-						printf("Memory Allocation Succeeds \n");
-						
-						t->space = space;
-						
-						// begin: Protential Problem 
-						// Update PCB
-						//ProcessList * PCB = new ProcessList ();
-						
-						ProcessElement * ProcessTemp = new ProcessElement;
-						ProcessTemp->ParentPID = currentThread->GetId();
-						//printf("ParentPID %u is store in PCB as %u\n",currentThread->GetId(),ProcessTemp->ParentPID);
-						ProcessTemp->PID = PID;
-						//printf("PID %u is store in PCB as %u\n",PID,ProcessTemp->PID);
-						ProcessTemp->CurrentThread = t;
-						ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
-						ProcessTemp->Next = ProcessTemp;
-						ProcessTemp->Previous = ProcessTemp;
-						if (space->SpaceFound == true) {
-							ProcessTemp->Valid = true;	
-						} else {
-							ProcessTemp->Valid = false;
-						}
-						PCB->Append(ProcessTemp);
-						machine->WriteRegister(2, PID);
-						++NumProcess;
-						if (space->SpaceFound == true) 
-							t -> Fork(processCreator,PID);
-						AdvancePC();
-						printf("Process %u finishes exec() system call.\n",PID);					
-				
+					t->space = space;
 					
+					// Update PCB
+					
+					ProcessElement * ProcessTemp = new ProcessElement;
+					ProcessTemp->ParentPID = currentThread->GetId();
+					ProcessTemp->PID = PID;
+					ProcessTemp->CurrentThread = t;
+					ProcessTemp->ProcessSemahpore =  new Semaphore("ProcessSemaphore",0);
+					ProcessTemp->Next = ProcessTemp;
+					ProcessTemp->Previous = ProcessTemp;
+						ProcessTemp->Valid = true;						
+						MutexNumProc -> P();
+						++NumProcess;
+						MutexNumProc -> V();
+						t -> Fork(processCreator,PID);
+					} else {
+						ProcessTemp->Valid = false;
+					}
+					printf("This is the %uth Process.\n",NumProcess);
+					PCB->Append(ProcessTemp);
+					machine->WriteRegister(2, PID);
+					
+					AdvancePC();
+
+					printf("Process %u finishes exec() system call.\n",PID);					
+				
 					break;
 				// End Anderson
 				}

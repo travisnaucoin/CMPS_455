@@ -26,6 +26,7 @@ BitMap *MainMemMap;
 int MemAll = 0;	// Glb variable for selecting memory allocation algorithm.
 extern char * MemAlgSelArgs;
 extern int CheckType (char *);
+Semaphore * MutexNumProc;
 
 int MemAlloAlgSelect (void) {
 	int MemAlg;
@@ -94,10 +95,12 @@ StartProcess(char *filename)
 	ProcessTemp->Previous = ProcessTemp;
 	ProcessTemp->Valid = true;	
 	PCB->Append(ProcessTemp);
-	
+	MutexNumProc = new Semaphore("MutexNumProc", 1);
+	MutexNumProc -> P();
 	++NumProcess;
-	
-    delete executable;			// close file
+	printf("?????????????????????????????????????????????This is the %uth Process!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",NumProcess);
+    MutexNumProc -> V();
+	delete executable;			// close file
 
     space->InitRegisters();		// set the initial register values
     space->RestoreState();		// load page table register

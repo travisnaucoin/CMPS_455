@@ -26,7 +26,8 @@
 // Memory allocation algorithm definition
 extern BitMap *MainMemMap;
 extern int MemAll;
-
+extern int NumProcess;
+extern Semaphore * MutexNumProc;
 // Pick the desired memory allocation algorithm
 // Return the starting physical address of the available memory frame
 
@@ -393,6 +394,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 		// May need to consider this case
 		//printf("Not enough memory.\n");
 		printf("Memory allocation for process %u fails.\n",currentThread->GetId());
+		
 	}
 }
 //----------------------------------------------------------------------
@@ -404,7 +406,7 @@ AddrSpace::~AddrSpace()
 {
 	unsigned int i;
 	
-	// delete memory space
+	// Free up memory space
 	for (i = 0; i < numPages; i++) 
 		bzero( &(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize);
 	
@@ -422,6 +424,17 @@ AddrSpace::~AddrSpace()
     delete pageTable;
 	CleanupExit();
 	printf("Process %u exits.\n", currentThread->GetId());
+	MutexNumProc -> P();
+	NumProcess--;
+	if (NumProcess == 0){
+		printf("There is no process left.\n");
+		MutexNumProc -> V();
+	}
+	else {
+		printf("???????????????????????????????????????????????????There are %u processes left.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",NumProcess);
+		MutexNumProc -> V();
+		//delete MutexNumProc;
+	}
 	currentThread->Finish();	
 }
 
@@ -435,17 +448,10 @@ void AddrSpace::CleanupExit() {
 		ElementTemp = PCB->Return(PID);
 		PCB->Remove(ElementTemp);
 	}
-	// Free up memory frame.
-	// currentThread->space->freeFrames();
-	//printf("Process %u is trying to deallocate memory space.\n", PID);
-	//delete currentThread->space;
 	
 	// Find out and wake up the parent thread.
 	//printf("Memory space for process %u is deleted\n", PID);
 	int ParentPID = ElementTemp->ParentPID;
-	
-	
-	//delete ElementTemp;
 	
 	if (ParentPID != 0){		
 		PCB->Return(ParentPID)->ProcessSemahpore->V();
@@ -453,8 +459,7 @@ void AddrSpace::CleanupExit() {
 	} else 
 		printf("There is no parent process.\n");
 	
-	if (--NumProcess == 0)
-		printf("There is no process left.\n");
+
 /*	
 	if (--NumProcess > 0) 
 //		printf("There is still process left.\n");
